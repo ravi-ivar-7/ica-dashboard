@@ -65,10 +65,8 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
     
     return () => {
       // Clean up AudioContext when component unmounts
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close().then(() => {
-          audioContextRef.current = null;
-        }).catch(console.error);
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(console.error);
       }
     };
   }, [isOpen]);
@@ -231,8 +229,8 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
   
   // Function to process audio elements and create a combined audio track
   const processAudio = async () => {
-    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-      console.warn('AudioContext not available or closed');
+    if (!audioContextRef.current) {
+      console.warn('AudioContext not available');
       return null;
     }
     
