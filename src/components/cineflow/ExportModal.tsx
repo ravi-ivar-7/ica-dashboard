@@ -41,6 +41,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
   const [exportProgress, setExportProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
   
   // Load FFmpeg when the modal opens
   useEffect(() => {
@@ -52,6 +53,22 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
         });
       });
     }
+    
+    // Initialize AudioContext
+    if (!audioContextRef.current) {
+      try {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      } catch (error) {
+        console.error('Failed to create AudioContext:', error);
+      }
+    }
+    
+    return () => {
+      // Clean up AudioContext when component unmounts
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(console.error);
+      }
+    };
   }, [isOpen]);
   
   if (!isOpen) return null;
@@ -210,6 +227,151 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
     ctx.globalAlpha = 1;
   };
   
+  // Function to process audio elements and create a combined audio track
+  const processAudio = async () => {
+    if (!audioContextRef.current) {
+      console.warn('AudioContext not available');
+      return null;
+    }
+    
+    // Get all audio elements
+    const audioElements = project.elements.filter(el => el.type === 'audio');
+    
+    if (audioElements.length === 0) {
+      console.log('No audio elements to process');
+      return null;
+    }
+    
+    try {
+      // Create a new offline audio context with the project duration
+      const offlineCtx = new OfflineAudioContext(
+        2, // stereo
+        44100 * project.duration, // sample rate * duration in seconds
+        44100 // sample rate
+      );
+      
+      // Load and process each audio element
+      const audioBuffers = await Promise.all(
+        audioElements.map(async (element) => {
+          try {
+            // Fetch the audio file
+            const response = await fetch(element.src);
+            const arrayBuffer = await response.arrayBuffer();
+            
+            // Decode the audio data
+            const audioBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+            
+            // Create a source node
+            const source = offlineCtx.createBufferSource();
+            source.buffer = audioBuffer;
+            
+            // Create a gain node for volume control
+            const gainNode = offlineCtx.createGain();
+            gainNode.gain.value = element.opacity !== undefined ? element.opacity : 1;
+            
+            // Connect the nodes
+            source.connect(gainNode);
+            gainNode.connect(offlineCtx.destination);
+            
+            // Schedule the audio to start at the element's start time
+            source.start(element.startTime);
+            
+            return { source, element };
+          } catch (error) {
+            console.error('Error processing audio element:', error);
+            return null;
+          }
+        })
+      );
+      
+      // Filter out any failed audio elements
+      const validAudioBuffers = audioBuffers.filter(buffer => buffer !== null);
+      
+      if (validAudioBuffers.length === 0) {
+        console.warn('No valid audio elements could be processed');
+        return null;
+      }
+      
+      // Render the audio
+      const renderedBuffer = await offlineCtx.startRendering();
+      
+      // Convert the rendered buffer to a WAV file
+      const wavBlob = await audioBufferToWav(renderedBuffer);
+      
+      return wavBlob;
+    } catch (error) {
+      console.error('Error processing audio:', error);
+      return null;
+    }
+  };
+  
+  // Function to convert AudioBuffer to WAV Blob
+  const audioBufferToWav = (buffer: AudioBuffer): Promise<Blob> => {
+    return new Promise((resolve) => {
+      const numChannels = buffer.numberOfChannels;
+      const sampleRate = buffer.sampleRate;
+      const format = 1; // PCM
+      const bitDepth = 16;
+      
+      const bytesPerSample = bitDepth / 8;
+      const blockAlign = numChannels * bytesPerSample;
+      
+      // Create the WAV file header
+      const headerSize = 44;
+      const dataSize = buffer.length * numChannels * bytesPerSample;
+      const wavSize = headerSize + dataSize;
+      
+      const wavBuffer = new ArrayBuffer(wavSize);
+      const view = new DataView(wavBuffer);
+      
+      // "RIFF" chunk descriptor
+      writeString(view, 0, 'RIFF');
+      view.setUint32(4, 36 + dataSize, true);
+      writeString(view, 8, 'WAVE');
+      
+      // "fmt " sub-chunk
+      writeString(view, 12, 'fmt ');
+      view.setUint32(16, 16, true); // fmt chunk size
+      view.setUint16(20, format, true); // audio format
+      view.setUint16(22, numChannels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * blockAlign, true); // byte rate
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, bitDepth, true);
+      
+      // "data" sub-chunk
+      writeString(view, 36, 'data');
+      view.setUint32(40, dataSize, true);
+      
+      // Write the PCM samples
+      const channels = [];
+      for (let i = 0; i < numChannels; i++) {
+        channels.push(buffer.getChannelData(i));
+      }
+      
+      let offset = 44;
+      for (let i = 0; i < buffer.length; i++) {
+        for (let channel = 0; channel < numChannels; channel++) {
+          const sample = Math.max(-1, Math.min(1, channels[channel][i]));
+          const value = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+          view.setInt16(offset, value, true);
+          offset += 2;
+        }
+      }
+      
+      // Create a Blob from the WAV data
+      const wavBlob = new Blob([wavBuffer], { type: 'audio/wav' });
+      resolve(wavBlob);
+    });
+  };
+  
+  // Helper function to write a string to a DataView
+  const writeString = (view: DataView, offset: number, string: string) => {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  };
+  
   // Function to export video
   const exportVideo = async () => {
     try {
@@ -272,7 +434,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
         ffmpegInstance.FS('writeFile', frameFileName, Uint8Array.from(atob(base64Data), c => c.charCodeAt(0)));
         
         // Update progress
-        const frameProgress = Math.floor((frameIndex / totalFrames) * 70);
+        const frameProgress = Math.floor((frameIndex / totalFrames) * 60);
         setExportProgress(5 + frameProgress);
         
         // Update status message periodically
@@ -282,28 +444,56 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
       }
       
       setStatusMessage('Processing audio...');
-      setExportProgress(75);
+      setExportProgress(65);
       
-      // Extract and process audio elements
-      const audioElements = project.elements.filter(el => el.type === 'audio');
+      // Process audio elements
+      const audioBlob = await processAudio();
+      let hasAudio = false;
       
-      // If there are audio elements, we would process them here
-      // For now, we'll skip actual audio processing and just simulate it
+      if (audioBlob) {
+        // Convert audio blob to array buffer
+        const audioArrayBuffer = await audioBlob.arrayBuffer();
+        
+        // Write audio file to FFmpeg virtual filesystem
+        ffmpegInstance.FS('writeFile', 'audio.wav', new Uint8Array(audioArrayBuffer));
+        hasAudio = true;
+        
+        setExportProgress(75);
+      }
       
       setStatusMessage('Encoding video...');
-      setExportProgress(85);
+      setExportProgress(80);
       
       // Encode video using FFmpeg
-      await ffmpegInstance.run(
-        '-framerate', `${fps}`,
-        '-pattern_type', 'glob',
-        '-i', 'frame*.jpg',
-        '-c:v', 'libx264',
-        '-pix_fmt', 'yuv420p',
-        '-preset', quality === 'high' ? 'slow' : quality === 'medium' ? 'medium' : 'fast',
-        '-crf', quality === 'high' ? '18' : quality === 'medium' ? '23' : '28',
-        'output.mp4'
-      );
+      if (hasAudio) {
+        // With audio
+        await ffmpegInstance.run(
+          '-framerate', `${fps}`,
+          '-pattern_type', 'glob',
+          '-i', 'frame*.jpg',
+          '-i', 'audio.wav',
+          '-c:v', 'libx264',
+          '-pix_fmt', 'yuv420p',
+          '-preset', quality === 'high' ? 'slow' : quality === 'medium' ? 'medium' : 'fast',
+          '-crf', quality === 'high' ? '18' : quality === 'medium' ? '23' : '28',
+          '-c:a', 'aac',
+          '-b:a', '192k',
+          '-shortest', // Ensure output duration is determined by the shortest input
+          'output.mp4'
+        );
+      } else {
+        // Without audio
+        await ffmpegInstance.run(
+          '-framerate', `${fps}`,
+          '-pattern_type', 'glob',
+          '-i', 'frame*.jpg',
+          '-c:v', 'libx264',
+          '-pix_fmt', 'yuv420p',
+          '-preset', quality === 'high' ? 'slow' : quality === 'medium' ? 'medium' : 'fast',
+          '-crf', quality === 'high' ? '18' : quality === 'medium' ? '23' : '28',
+          'output.mp4'
+        );
+      }
       
       setStatusMessage('Finalizing export...');
       setExportProgress(95);
@@ -341,6 +531,11 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
         const frameFileName = `frame${String(i).padStart(4, '0')}.jpg`;
         ffmpegInstance.FS('unlink', frameFileName);
       }
+      
+      if (hasAudio) {
+        ffmpegInstance.FS('unlink', 'audio.wav');
+      }
+      
       ffmpegInstance.FS('unlink', 'output.mp4');
       
       setExportProgress(100);
@@ -357,7 +552,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
       
     } catch (error) {
       console.error('Error exporting video:', error);
-      toast.error('Export failed', {
+      toast.error(`Error exporting video: ${error instanceof Error ? error.message : 'Unknown error'}`, {
         subtext: 'There was an error during the export process. Please try again.',
         duration: 5000
       });
@@ -771,7 +966,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
                   <div>
                     <p className="text-amber-300 text-sm font-semibold mb-1">Export Information</p>
                     <p className="text-white/70 text-xs">
-                      {exportFormat === 'video' && 'Video export may take several minutes depending on the complexity and duration of your project.'}
+                      {exportFormat === 'video' && 'Video export may take several minutes depending on the complexity and duration of your project. Audio tracks will be automatically mixed and included in the final video.'}
                       {exportFormat === 'image-sequence' && 'Image sequence will be exported as a ZIP file containing PNG images for each frame.'}
                       {exportFormat === 'json' && 'JSON export contains your project configuration for backup or sharing with others.'}
                     </p>
