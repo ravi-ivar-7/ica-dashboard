@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { CanvasElementType } from '../../types/cineflow';
-import { Play, Pause, ChevronLeft, ChevronRight, Clock, Layers } from 'lucide-react';
+import { Play, Pause, ChevronLeft, ChevronRight, Clock, Plus, Minus, Layers } from 'lucide-react';
 
 interface TimelineProps {
   elements: CanvasElementType[];
@@ -35,6 +35,7 @@ const Timeline: React.FC<TimelineProps> = ({
   const [startDuration, setStartDuration] = useState(0);
   const [startLayer, setStartLayer] = useState(0);
   const [timelineWidth, setTimelineWidth] = useState(0);
+  const [zoom, setZoom] = useState(1);
   const [customDuration, setCustomDuration] = useState(duration);
   const [showLayerPanel, setShowLayerPanel] = useState(true);
   const [dragOverElementId, setDragOverElementId] = useState<string | null>(null);
@@ -73,12 +74,12 @@ const Timeline: React.FC<TimelineProps> = ({
 
   // Convert time to position
   const timeToPosition = (time: number) => {
-    return (time / customDuration) * timelineWidth;
+    return (time / customDuration) * timelineWidth * zoom;
   };
 
   // Convert position to time
   const positionToTime = (position: number) => {
-    return (position / timelineWidth) * customDuration;
+    return (position / (timelineWidth * zoom)) * customDuration;
   };
 
   // Format time as MM:SS.ms
@@ -294,7 +295,7 @@ const Timeline: React.FC<TimelineProps> = ({
           const deltaTime = positionToTime(deltaPos);
           
           let newStartTime = startTime + deltaTime;
-          newStartTime = Math.max(0, Math.min(newStartTime, startTime + startDuration - 5));
+          newStartTime = Math.max(0, Math.min(newStartTime, startTime + startDuration - 0.1));
           
           const newDuration = startDuration - (newStartTime - startTime);
           
@@ -308,7 +309,7 @@ const Timeline: React.FC<TimelineProps> = ({
           const deltaTime = positionToTime(deltaPos);
           
           let newDuration = startDuration + deltaTime;
-          newDuration = Math.max(5, Math.min(newDuration, customDuration - startTime));
+          newDuration = Math.max(0.1, Math.min(newDuration, customDuration - startTime));
           
           onUpdateElement(isDraggingElement, { duration: newDuration });
         } else if (dragType === 'layer') {
@@ -423,7 +424,8 @@ const Timeline: React.FC<TimelineProps> = ({
     onTimeUpdate, 
     onUpdateElement,
     dragOverElementId,
-    timelineWidth
+    timelineWidth,
+    zoom
   ]);
 
   // Update custom duration
@@ -469,6 +471,10 @@ const Timeline: React.FC<TimelineProps> = ({
           </button>
           
           <div className="flex items-center space-x-1">
+            <span className="text-white/80 text-xs">{Math.round(zoom * 100)}%</span>
+          </div>
+          
+          <div className="flex items-center space-x-1">
             <span className="text-white/80 text-xs">Duration:</span>
             <input
               type="number"
@@ -483,7 +489,7 @@ const Timeline: React.FC<TimelineProps> = ({
       </div>
 
       <div className="flex flex-1">
-        {/* Layer Panel (always visible) */}
+        {/* Layer Panel (when visible) */}
         {showLayerPanel && (
           <div className="w-48 border-r border-white/10 bg-gray-900/80 overflow-y-auto">
             <div className="p-2 border-b border-white/10">
@@ -564,7 +570,7 @@ const Timeline: React.FC<TimelineProps> = ({
             {/* Element timelines */}
             <div 
               className="p-2 space-y-2" 
-              style={{ width: `${timelineWidth}px`, minWidth: '100%' }}
+              style={{ width: `${timelineWidth * zoom}px`, minWidth: '100%' }}
               ref={timelineContentRef}
             >
               {sortedElements.map(element => {

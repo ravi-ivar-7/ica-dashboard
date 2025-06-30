@@ -169,6 +169,7 @@ export default function CineFlowEditor() {
       playIntervalRef.current = window.setInterval(() => {
         setCurrentTime(prevTime => {
           const newTime = prevTime + 0.1;
+          // Stop at the project duration
           if (newTime >= project.duration) {
             setIsPlaying(false);
             return 0;
