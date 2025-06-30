@@ -1,6 +1,6 @@
 import React from 'react';
 import { CanvasElementType } from '../../types/cineflow';
-import { Trash2, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, ArrowUp, ArrowDown, Layers } from 'lucide-react';
+import { Trash2, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline } from 'lucide-react';
 
 interface PropertiesPanelProps {
   selectedElement: CanvasElementType | null;
@@ -37,12 +37,6 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     }
   };
 
-  const handleLayerChange = (direction: 'up' | 'down') => {
-    const currentLayer = selectedElement.layer || 0;
-    const newLayer = direction === 'up' ? currentLayer + 1 : Math.max(0, currentLayer - 1);
-    onUpdateElement(selectedElement.id, { layer: newLayer });
-  };
-
   return (
     <div className="h-full bg-gray-900/80 border-l border-white/10 p-4 overflow-y-auto">
       <div className="flex items-center justify-between mb-4">
@@ -61,33 +55,6 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           <label className="block text-white/70 text-xs font-medium mb-1">Type</label>
           <div className="bg-white/10 rounded-lg px-3 py-2 text-white text-sm">
             {selectedElement.type.charAt(0).toUpperCase() + selectedElement.type.slice(1)}
-          </div>
-        </div>
-
-        {/* Layer Control */}
-        <div>
-          <label className="block text-white/70 text-xs font-medium mb-1 flex items-center">
-            <Layers className="w-3.5 h-3.5 mr-1" />
-            Layer
-          </label>
-          <div className="flex items-center space-x-2">
-            <div className="bg-white/10 rounded-lg px-3 py-2 text-white text-sm flex-1">
-              {selectedElement.layer || 0}
-            </div>
-            <button
-              onClick={() => handleLayerChange('up')}
-              className="bg-white/10 hover:bg-white/20 p-2 rounded-lg text-white transition-colors"
-              title="Move Up"
-            >
-              <ArrowUp className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => handleLayerChange('down')}
-              className="bg-white/10 hover:bg-white/20 p-2 rounded-lg text-white transition-colors"
-              title="Move Down"
-            >
-              <ArrowDown className="w-4 h-4" />
-            </button>
           </div>
         </div>
 
