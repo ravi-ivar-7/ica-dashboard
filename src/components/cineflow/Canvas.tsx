@@ -155,19 +155,23 @@ const Canvas: React.FC<CanvasProps> = ({
           const isVisible = currentTime >= element.startTime && 
                            currentTime < (element.startTime + element.duration);
           
-          return (
-            <CanvasElement
-              key={element.id}
-              element={element}
-              isSelected={selectedElementId === element.id}
-              isPlaying={isPlaying}
-              currentTime={currentTime}
-              isVisible={isVisible}
-              onSelect={onSelectElement}
-              onUpdate={onUpdateElement}
-              onDelete={onDeleteElement}
-            />
-          );
+          // Only render if visible or selected
+          if (isVisible || selectedElementId === element.id) {
+            return (
+              <CanvasElement
+                key={element.id}
+                element={element}
+                isSelected={selectedElementId === element.id}
+                isPlaying={isPlaying}
+                currentTime={currentTime}
+                isVisible={isVisible}
+                onSelect={onSelectElement}
+                onUpdate={onUpdateElement}
+                onDelete={onDeleteElement}
+              />
+            );
+          }
+          return null;
         })}
       </div>
     </div>
