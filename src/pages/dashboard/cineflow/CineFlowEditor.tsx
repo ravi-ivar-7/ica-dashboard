@@ -71,6 +71,10 @@ export default function CineFlowEditor() {
   const [isMobile, setIsMobile] = useState(false);
   const [showLeftPanel, setShowLeftPanel] = useState(true);
   const [showRightPanel, setShowRightPanel] = useState(true);
+  const [projectMetadata, setProjectMetadata] = useState({
+    title: 'Untitled Project',
+    description: '',
+  });
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
   const [showExportModal, setShowExportModal] = useState(false);
@@ -110,8 +114,8 @@ export default function CineFlowEditor() {
       document.removeEventListener('keydown', handleUserInteraction);
       
       // Clean up audio context
-      if (audioContext) {
-        audioContext.close();
+      if (audioContext && audioContext.state !== 'closed') {
+        audioContext.close().catch(console.error);
       }
     };
   }, [audioContext]);
@@ -165,6 +169,12 @@ export default function CineFlowEditor() {
           
           parsedProject.elements = elementsWithLayers;
           setProject(parsedProject);
+
+          // Set project metadata
+          setProjectMetadata({
+            title: parsedProject.name || 'Untitled Project',
+            description: parsedProject.description || '',
+          });
           
           // Initialize history
           setHistory([parsedProject]);
@@ -608,12 +618,26 @@ export default function CineFlowEditor() {
     setShowRightPanel(!showRightPanel);
   };
 
+  // Handle project metadata changes
+  const handleProjectDetailsChange = (name: string, description: string) => {
+    setProjectMetadata({
+      title: name,
+      description: description,
+    });
+    
+    setProject(prev => ({
+      ...prev,
+      name: name,
+      description: description
+    }));
+  };
+
   return (
     <ErrorBoundary>
       <div className="flex flex-col h-screen bg-black">
         {/* Top toolbar */}
         <TopToolbar
-          projectName={project.name}
+          projectName={projectMetadata.title}
           isPlaying={isPlaying}
           canUndo={canUndo}
           canRedo={canRedo}
@@ -624,6 +648,8 @@ export default function CineFlowEditor() {
           onRedo={handleRedo}
           onSave={handleSave}
           onExport={handleExport}
+          projectDescription={projectMetadata.description}
+          onProjectDetailsChange={handleProjectDetailsChange}
         />
         
         {/* Mobile toolbar */}
