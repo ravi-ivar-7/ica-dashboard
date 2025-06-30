@@ -145,8 +145,8 @@ export default function CineFlowEditor() {
       setShowLeftPanel(false);
       setShowRightPanel(false);
     } else {
-      setLeftPanelWidth(250);
-      setRightPanelWidth(250);
+      setLeftPanelWidth(leftPanelCollapsed ? 40 : 250);
+      setRightPanelWidth(rightPanelCollapsed ? 40 : 250);
       setShowLeftPanel(true);
       setShowRightPanel(true);
     }
@@ -691,7 +691,7 @@ export default function CineFlowEditor() {
         
         {/* Main content */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Left panel - Sticky */}
+          {/* Left panel - Assets */}
           {isMobile ? (
             <div 
               className={`fixed bottom-0 left-0 z-40 w-full transform transition-transform duration-300 ${
@@ -703,12 +703,23 @@ export default function CineFlowEditor() {
               }}
             >
               <div className="h-full bg-gray-900/95 border-t border-white/20 rounded-t-xl shadow-lg overflow-hidden">
-                <LeftPanel
-                  onAssetDragStart={handleAssetDragStart}
-                  onAddText={handleAddText}
-                  onAddElement={handleAddElement}
-                  onApplyTemplate={handleApplyTemplate}
-                />
+                <div className="flex justify-between items-center p-2 border-b border-white/10">
+                  <h3 className="text-white font-bold text-sm">Assets</h3>
+                  <button
+                    onClick={toggleLeftPanel}
+                    className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="h-[calc(100%-40px)] overflow-y-auto">
+                  <LeftPanel
+                    onAssetDragStart={handleAssetDragStart}
+                    onAddText={handleAddText}
+                    onAddElement={handleAddElement}
+                    onApplyTemplate={handleApplyTemplate}
+                  />
+                </div>
               </div>
             </div>
           ) : (
@@ -765,7 +776,7 @@ export default function CineFlowEditor() {
             </div>
           </div>
           
-          {/* Right panel - Sticky */}
+          {/* Right panel - Properties */}
           {isMobile ? (
             <div 
               className={`fixed bottom-0 right-0 z-40 w-full transform transition-transform duration-300 ${
@@ -777,11 +788,22 @@ export default function CineFlowEditor() {
               }}
             >
               <div className="h-full bg-gray-900/95 border-t border-white/20 rounded-t-xl shadow-lg overflow-hidden">
-                <PropertiesPanel
-                  selectedElement={selectedElement}
-                  onUpdateElement={updateElement}
-                  onDeleteElement={deleteElement}
-                />
+                <div className="flex justify-between items-center p-2 border-b border-white/10">
+                  <h3 className="text-white font-bold text-sm">Properties</h3>
+                  <button
+                    onClick={toggleRightPanel}
+                    className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="h-[calc(100%-40px)] overflow-y-auto">
+                  <PropertiesPanel
+                    selectedElement={selectedElement}
+                    onUpdateElement={updateElement}
+                    onDeleteElement={deleteElement}
+                  />
+                </div>
               </div>
             </div>
           ) : (

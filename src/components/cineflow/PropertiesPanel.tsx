@@ -40,7 +40,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     }
 
     return (
-      <div className="h-full bg-gray-900/80 border-l border-white/10 p-3 flex items-center justify-center">
+      <div className="h-full bg-gray-900/80 border-l border-white/10 p-3 flex items-center justify-center overflow-y-auto">
         <div className="flex flex-col items-center">
           {onToggleCollapse && (
             <button

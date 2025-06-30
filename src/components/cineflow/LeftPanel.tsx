@@ -190,7 +190,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
     );
   }
   return (
-    <div className="flex flex-col h-full bg-gray-900/80 border-r border-white/10">
+    <div className="flex flex-col h-full bg-gray-900/80 border-r border-white/10 overflow-hidden">
       {/* Header with collapse button */}
       <div className="p-2 border-b border-white/10 flex justify-between items-center">
         <h3 className="text-white font-bold text-sm">Assets</h3>
