@@ -35,9 +35,8 @@ const Timeline: React.FC<TimelineProps> = ({
   const [startDuration, setStartDuration] = useState(0);
   const [startLayer, setStartLayer] = useState(0);
   const [timelineWidth, setTimelineWidth] = useState(0);
-  const [zoom, setZoom] = useState(1);
   const [customDuration, setCustomDuration] = useState(duration);
-  const [showLayerPanel, setShowLayerPanel] = useState(false);
+  const [showLayerPanel, setShowLayerPanel] = useState(true);
   const [dragOverElementId, setDragOverElementId] = useState<string | null>(null);
   const [draggedElement, setDraggedElement] = useState<CanvasElementType | null>(null);
 
@@ -74,12 +73,12 @@ const Timeline: React.FC<TimelineProps> = ({
 
   // Convert time to position
   const timeToPosition = (time: number) => {
-    return (time / customDuration) * timelineWidth * zoom;
+    return (time / customDuration) * timelineWidth;
   };
 
   // Convert position to time
   const positionToTime = (position: number) => {
-    return (position / (timelineWidth * zoom)) * customDuration;
+    return (position / timelineWidth) * customDuration;
   };
 
   // Format time as MM:SS.ms
@@ -309,7 +308,7 @@ const Timeline: React.FC<TimelineProps> = ({
           const deltaTime = positionToTime(deltaPos);
           
           let newDuration = startDuration + deltaTime;
-          newDuration = Math.max(0.1, Math.min(newDuration, customDuration - startTime));
+          newDuration = Math.max(5, Math.min(newDuration, customDuration - startTime));
           
           onUpdateElement(isDraggingElement, { duration: newDuration });
         } else if (dragType === 'layer') {
@@ -424,23 +423,13 @@ const Timeline: React.FC<TimelineProps> = ({
     onTimeUpdate, 
     onUpdateElement,
     dragOverElementId,
-    timelineWidth,
-    zoom
+    timelineWidth
   ]);
-
-  // Zoom in/out
-  const handleZoomIn = () => {
-    setZoom(prev => Math.min(prev + 0.5, 5));
-  };
-
-  const handleZoomOut = () => {
-    setZoom(prev => Math.max(prev - 0.5, 0.5));
-  };
 
   // Update custom duration
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newDuration = Number(e.target.value);
-    if (newDuration >= 1) {
+    if (newDuration >= 5) {
       setCustomDuration(newDuration);
     }
   };
@@ -480,28 +469,10 @@ const Timeline: React.FC<TimelineProps> = ({
           </button>
           
           <div className="flex items-center space-x-1">
-            <button
-              onClick={handleZoomOut}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
-              disabled={zoom <= 0.5}
-            >
-              <Minus className="w-3 h-3" />
-            </button>
-            <span className="text-white/80 text-xs">{Math.round(zoom * 100)}%</span>
-            <button
-              onClick={handleZoomIn}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
-              disabled={zoom >= 5}
-            >
-              <Plus className="w-3 h-3" />
-            </button>
-          </div>
-          
-          <div className="flex items-center space-x-1">
             <span className="text-white/80 text-xs">Duration:</span>
             <input
               type="number"
-              min="1"
+              min="5"
               value={customDuration}
               onChange={handleDurationChange}
               className="w-16 bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-white text-xs focus:outline-none focus:border-amber-400"
@@ -512,7 +483,7 @@ const Timeline: React.FC<TimelineProps> = ({
       </div>
 
       <div className="flex flex-1">
-        {/* Layer Panel (when visible) */}
+        {/* Layer Panel (always visible) */}
         {showLayerPanel && (
           <div className="w-48 border-r border-white/10 bg-gray-900/80 overflow-y-auto">
             <div className="p-2 border-b border-white/10">
@@ -593,7 +564,7 @@ const Timeline: React.FC<TimelineProps> = ({
             {/* Element timelines */}
             <div 
               className="p-2 space-y-2" 
-              style={{ width: `${timelineWidth * zoom}px`, minWidth: '100%' }}
+              style={{ width: `${timelineWidth}px`, minWidth: '100%' }}
               ref={timelineContentRef}
             >
               {sortedElements.map(element => {
