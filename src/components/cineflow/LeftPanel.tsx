@@ -24,6 +24,40 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
   const [filteredElements, setFilteredElements] = useState(mockElements);
   const [filteredTextStyles, setFilteredTextStyles] = useState(mockTextStyles);
 
+  // Add sample audio assets if they don't exist
+  useEffect(() => {
+    const hasAudioAssets = mockAssets.some(asset => asset.type === 'audio');
+    
+    if (!hasAudioAssets) {
+      const audioAssets = [
+        {
+          id: 'aud1',
+          type: 'audio' as const,
+          name: 'Upbeat Music.mp3',
+          src: 'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3',
+          duration: '00:01:30'
+        },
+        {
+          id: 'aud2',
+          type: 'audio' as const,
+          name: 'Ambient Sounds.mp3',
+          src: 'https://assets.mixkit.co/music/preview/mixkit-dreaming-big-31.mp3',
+          duration: '00:02:15'
+        },
+        {
+          id: 'aud3',
+          type: 'audio' as const,
+          name: 'Cinematic Score.mp3',
+          src: 'https://assets.mixkit.co/music/preview/mixkit-epical-drums-01-676.mp3',
+          duration: '00:01:45'
+        }
+      ];
+      
+      mockAssets.push(...audioAssets);
+      setFilteredAssets([...mockAssets]);
+    }
+  }, []);
+
   // Filter assets based on search query
   useEffect(() => {
     if (searchQuery) {

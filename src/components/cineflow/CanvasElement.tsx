@@ -29,8 +29,10 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
   const [startSize, setStartSize] = useState({ width: 0, height: 0 });
   const [startPosition, setStartPosition] = useState({ x: 0, y: 0 });
   const [videoPlaybackBlocked, setVideoPlaybackBlocked] = useState(false);
+  const [volume, setVolume] = useState(1);
   const elementRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   // Handle element selection
   const handleSelect = (e: React.MouseEvent) => {
@@ -54,6 +56,24 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
       } else {
         videoRef.current.pause();
       }
+    }
+  };
+
+  // Handle audio click to play/pause
+  const handleAudioClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onSelect(element.id);
+  };
+
+  // Handle volume change
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
+    
+    if (element.type === 'audio' && audioRef.current) {
+      audioRef.current.volume = newVolume;
+    } else if (element.type === 'video' && videoRef.current) {
+      videoRef.current.volume = newVolume;
     }
   };
 
@@ -147,6 +167,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
     if (element.type === 'video' && videoRef.current) {
       if (isPlaying && isVisible) {
         videoRef.current.currentTime = currentTime - element.startTime;
+        videoRef.current.volume = volume;
         videoRef.current.play().catch(err => {
           // Handle autoplay restrictions gracefully without logging errors
           if (err.name === 'NotAllowedError' || err.message.includes('interrupted') || err.message.includes('background media')) {
@@ -161,7 +182,31 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
         videoRef.current.pause();
       }
     }
-  }, [isPlaying, currentTime, element, isVisible]);
+  }, [isPlaying, currentTime, element, isVisible, volume]);
+
+  // Control audio playback based on isPlaying state
+  useEffect(() => {
+    if (element.type === 'audio' && audioRef.current) {
+      if (isPlaying && isVisible) {
+        // Set the current time based on timeline position
+        audioRef.current.currentTime = currentTime - element.startTime;
+        audioRef.current.volume = volume;
+        
+        // Play the audio
+        audioRef.current.play().catch(err => {
+          // Handle autoplay restrictions gracefully
+          if (err.name === 'NotAllowedError' || err.message.includes('interrupted') || err.message.includes('background media')) {
+            console.log('Audio autoplay blocked. User interaction required.');
+            return;
+          }
+          console.warn('Unexpected audio playback error:', err);
+        });
+      } else {
+        // Pause the audio when not playing or not visible
+        audioRef.current.pause();
+      }
+    }
+  }, [isPlaying, currentTime, element, isVisible, volume]);
 
   // Reset video playback blocked state when user interacts
   const handleUserVideoInteraction = () => {
@@ -190,8 +235,8 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
               className="w-full h-full object-cover"
               onClick={handleVideoClick}
               onPlay={handleUserVideoInteraction}
-              loop
-              muted
+              loop={false}
+              muted={volume === 0}
               playsInline
               poster={element.poster}
             />
@@ -201,6 +246,63 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                   <div className="mb-2">▶</div>
                   <div>Click to play</div>
                 </div>
+              </div>
+            )}
+            {isSelected && (
+              <div className="absolute bottom-2 left-2 right-2 bg-black/70 rounded-lg p-2">
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={volume}
+                  onChange={handleVolumeChange}
+                  className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer accent-amber-500"
+                />
+              </div>
+            )}
+          </div>
+        );
+      case 'audio':
+        return (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-r from-purple-500/30 to-blue-500/30 rounded-lg p-4">
+            <audio 
+              ref={audioRef}
+              src={element.src}
+              className="hidden"
+            />
+            <div className="text-white text-center mb-4">
+              <div className="text-xl mb-2">🎵</div>
+              <div className="font-semibold">{element.name || 'Audio Track'}</div>
+            </div>
+            
+            {/* Audio waveform visualization */}
+            <div className="w-full h-12 bg-black/30 rounded-lg relative overflow-hidden">
+              <div className="absolute inset-0 flex items-center justify-around px-1">
+                {[...Array(40)].map((_, i) => (
+                  <div 
+                    key={i} 
+                    className="w-1 bg-blue-400/50 rounded-full"
+                    style={{ 
+                      height: `${10 + Math.sin(i * 0.5) * 20}px`,
+                      opacity: isPlaying && isVisible && i < (currentTime - element.startTime) / element.duration * 40 ? 1 : 0.5
+                    }}
+                  ></div>
+                ))}
+              </div>
+            </div>
+            
+            {isSelected && (
+              <div className="mt-4 w-full">
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={volume}
+                  onChange={handleVolumeChange}
+                  className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer accent-amber-500"
+                />
               </div>
             )}
           </div>

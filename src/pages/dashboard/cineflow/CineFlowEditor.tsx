@@ -70,6 +70,8 @@ export default function CineFlowEditor() {
   const [isMobile, setIsMobile] = useState(false);
   const [showLeftPanel, setShowLeftPanel] = useState(true);
   const [showRightPanel, setShowRightPanel] = useState(true);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
   
   // History for undo/redo
   const [history, setHistory] = useState<CineFlowProject[]>([]);
@@ -80,6 +82,37 @@ export default function CineFlowEditor() {
   // Refs
   const playIntervalRef = useRef<number | null>(null);
   const projectRef = useRef(project);
+  
+  // Initialize audio context
+  useEffect(() => {
+    // Create AudioContext on first user interaction to avoid autoplay restrictions
+    const initAudioContext = () => {
+      if (!audioContext) {
+        const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+        setAudioContext(context);
+      }
+    };
+
+    // Add event listeners for user interaction
+    const handleUserInteraction = () => {
+      initAudioContext();
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+    };
+
+    document.addEventListener('click', handleUserInteraction);
+    document.addEventListener('keydown', handleUserInteraction);
+
+    return () => {
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+      
+      // Clean up audio context
+      if (audioContext) {
+        audioContext.close();
+      }
+    };
+  }, [audioContext]);
   
   // Check if mobile
   useEffect(() => {
@@ -337,10 +370,10 @@ export default function CineFlowEditor() {
           type: 'audio',
           name: asset.name,
           src: asset.src,
-          x: 0,
-          y: 0,
-          width: 0,
-          height: 0,
+          x: position.x,
+          y: position.y,
+          width: 300,
+          height: 100,
           startTime: 0,
           duration: 15,
           layer: highestLayer + 1
