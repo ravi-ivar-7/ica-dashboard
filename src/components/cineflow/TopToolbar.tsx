@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Save, Download, Undo, Redo, Play, Pause, HelpCircle, ChevronDown } from 'lucide-react';
+import { Save, Download, Undo, Redo, Play, Pause, HelpCircle, ChevronDown, Settings, Info, Radio, X } from 'lucide-react';
 import { toast } from '../../contexts/ToastContext';
 
 interface TopToolbarProps {
@@ -30,6 +30,7 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
   onExport
 }) => {
   const [showAspectRatioDropdown, setShowAspectRatioDropdown] = useState(false);
+  const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   
   const aspectRatios = [
     { value: '16:9', label: '16:9 - Landscape' },
@@ -49,21 +50,21 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
   return (
     <div className="flex items-center justify-between p-2 bg-gray-900/90 border-b border-white/10">
       {/* Left section */}
-      <div className="flex items-center space-x-3">
-        <h2 className="text-white font-bold text-base truncate max-w-[200px]">{projectName}</h2>
-        <div className="text-white/50 text-xs">Autosaving...</div>
+      <div className="flex items-center space-x-2">
+        <h2 className="text-white font-bold text-sm truncate max-w-[120px] sm:max-w-[200px]">{projectName}</h2>
+        <div className="text-white/50 text-xs hidden sm:block">Autosaving...</div>
       </div>
       
       {/* Center section */}
-      <div className="flex items-center space-x-4">
-        <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 sm:space-x-3">
+        <div className="flex items-center space-x-1 sm:space-x-2">
           <button
             onClick={onUndo}
             disabled={!canUndo}
             className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Undo"
           >
-            <Undo className="w-4 h-4" />
+            <Undo className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={onRedo}
@@ -71,21 +72,21 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
             className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Redo"
           >
-            <Redo className="w-4 h-4" />
+            <Redo className="w-3.5 h-3.5" />
           </button>
         </div>
         
-        <div className="h-4 border-l border-white/20 mx-1"></div>
+        <div className="h-4 border-l border-white/20 mx-1 hidden sm:block"></div>
         
         <button
           onClick={onPlayPause}
           className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
           title={isPlaying ? "Pause" : "Play"}
         >
-          {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+          {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
         </button>
         
-        <div className="h-4 border-l border-white/20 mx-1"></div>
+        <div className="h-4 border-l border-white/20 mx-1 hidden sm:block"></div>
         
         {/* Aspect Ratio Dropdown */}
         <div className="relative">
@@ -116,36 +117,99 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
             </div>
           )}
         </div>
+        
+        {/* Settings Button */}
+        <button
+          onClick={() => setShowSettingsPanel(!showSettingsPanel)}
+          className={`p-1.5 rounded-lg ${
+            showSettingsPanel ? 'bg-amber-500 text-black' : 'bg-white/10 hover:bg-white/20 text-white'
+          } transition-colors hidden sm:flex`}
+          title="Settings"
+        >
+          <Settings className="w-3.5 h-3.5" />
+        </button>
       </div>
       
       {/* Right section */}
       <div className="flex items-center space-x-2">
         <button
           onClick={onSave}
-          className="flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors text-sm"
+          className="flex items-center space-x-1 px-2 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors text-xs"
           title="Save Project"
         >
-          <Save className="w-4 h-4" />
+          <Save className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Save</span>
         </button>
         
         <button
           onClick={onExport}
-          className="flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-black font-semibold transition-colors hover:scale-105 text-sm"
+          className="flex items-center space-x-1 px-2 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-black font-semibold transition-colors hover:scale-105 text-xs"
           title="Export Video"
         >
-          <Download className="w-4 h-4" />
+          <Download className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Export</span>
         </button>
         
         <button
           onClick={handleHelp}
-          className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+          className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors hidden sm:block"
           title="Help"
         >
-          <HelpCircle className="w-4 h-4" />
+          <HelpCircle className="w-3.5 h-3.5" />
         </button>
       </div>
+      
+      {/* Settings Panel */}
+      {showSettingsPanel && (
+        <div className="absolute top-10 right-4 mt-1 bg-gray-900/95 border border-white/20 rounded-lg shadow-lg z-50 w-64">
+          <div className="flex items-center justify-between p-3 border-b border-white/10">
+            <h3 className="text-white font-bold text-sm">Project Settings</h3>
+            <button
+              onClick={() => setShowSettingsPanel(false)}
+              className="text-white/60 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="p-3 space-y-3">
+            <div>
+              <label className="block text-white/80 text-xs font-semibold mb-1">
+                Project Name
+              </label>
+              <input
+                type="text"
+                value={projectName}
+                className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition-all"
+                readOnly
+              />
+            </div>
+            <div>
+              <label className="block text-white/80 text-xs font-semibold mb-1">
+                Aspect Ratio
+              </label>
+              <select
+                value={aspectRatio}
+                onChange={(e) => onAspectRatioChange(e.target.value)}
+                className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition-all"
+              >
+                {aspectRatios.map((ratio) => (
+                  <option key={ratio.value} value={ratio.value} className="bg-gray-900">
+                    {ratio.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-lg p-2">
+              <div className="flex items-start space-x-2">
+                <Info className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-white/70 text-xs">
+                  Changing aspect ratio may affect the positioning of elements on your canvas.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

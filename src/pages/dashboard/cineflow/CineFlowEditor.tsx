@@ -74,6 +74,8 @@ export default function CineFlowEditor() {
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
   const [showExportModal, setShowExportModal] = useState(false);
+  const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   
   // History for undo/redo
   const [history, setHistory] = useState<CineFlowProject[]>([]);
@@ -137,13 +139,15 @@ export default function CineFlowEditor() {
       setRightPanelWidth(window.innerWidth * 0.8);
       setShowLeftPanel(false);
       setShowRightPanel(false);
+      setLeftPanelCollapsed(true);
+      setRightPanelCollapsed(true);
     } else {
-      setLeftPanelWidth(250);
-      setRightPanelWidth(250);
+      setLeftPanelWidth(leftPanelCollapsed ? 40 : 250);
+      setRightPanelWidth(rightPanelCollapsed ? 40 : 250);
       setShowLeftPanel(true);
       setShowRightPanel(true);
     }
-  }, [isMobile]);
+  }, [isMobile, leftPanelCollapsed, rightPanelCollapsed]);
   
   // Load project data
   useEffect(() => {
@@ -601,11 +605,19 @@ export default function CineFlowEditor() {
 
   // Toggle panels for mobile
   const toggleLeftPanel = () => {
-    setShowLeftPanel(!showLeftPanel);
+    if (isMobile) {
+      setShowLeftPanel(!showLeftPanel);
+    } else {
+      setLeftPanelCollapsed(!leftPanelCollapsed);
+    }
   };
 
   const toggleRightPanel = () => {
-    setShowRightPanel(!showRightPanel);
+    if (isMobile) {
+      setShowRightPanel(!showRightPanel);
+    } else {
+      setRightPanelCollapsed(!rightPanelCollapsed);
+    }
   };
 
   return (
@@ -628,10 +640,10 @@ export default function CineFlowEditor() {
         
         {/* Mobile toolbar */}
         {isMobile && (
-          <div className="flex items-center justify-between p-2 bg-gray-900/90 border-b border-white/10">
+          <div className="flex items-center justify-between p-1 bg-gray-900/90 border-b border-white/10">
             <button
               onClick={toggleLeftPanel}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
             >
               {showLeftPanel ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             </button>
@@ -642,7 +654,7 @@ export default function CineFlowEditor() {
             
             <button
               onClick={toggleRightPanel}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
             >
               {showRightPanel ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </button>
@@ -665,6 +677,8 @@ export default function CineFlowEditor() {
                 onAddText={handleAddText}
                 onAddElement={handleAddElement}
                 onApplyTemplate={handleApplyTemplate}
+                isCollapsed={leftPanelCollapsed}
+                onToggleCollapse={toggleLeftPanel}
               />
             )}
           </div>
@@ -687,7 +701,7 @@ export default function CineFlowEditor() {
             </div>
             
             {/* Timeline */}
-            <div className="h-48 flex-shrink-0">
+            <div className="h-40 sm:h-48 flex-shrink-0">
               <Timeline
                 elements={project.elements}
                 currentTime={currentTime}
@@ -715,6 +729,8 @@ export default function CineFlowEditor() {
                 selectedElement={selectedElement}
                 onUpdateElement={updateElement}
                 onDeleteElement={deleteElement}
+                isCollapsed={rightPanelCollapsed}
+                onToggleCollapse={toggleRightPanel}
               />
             )}
           </div>
