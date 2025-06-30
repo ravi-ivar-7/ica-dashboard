@@ -244,7 +244,7 @@ const Canvas: React.FC<CanvasProps> = ({
         
         {/* Bottom-right resize handle only */}
         <div 
-          className="absolute bottom-0 right-0 w-5 h-5 bg-amber-500 rounded-full cursor-se-resize transform translate-x-1/2 translate-y-1/2"
+          className="absolute bottom-0 right-0 w-6 h-6 bg-amber-500 rounded-full cursor-se-resize transform translate-x-1/2 translate-y-1/2"
           onMouseDown={handleResizeStart}
         ></div>
       </div>

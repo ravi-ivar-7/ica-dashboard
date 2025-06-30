@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Download, Save, Cloud, FileJson, Video, Image as ImageIcon, Check, Info, Zap, Loader, Instagram, Youtube, Twitter, Calendar, Clock, Camera } from 'lucide-react';
+import { X, Download, Save, Cloud, FileJson, Video, Image as ImageIcon, Check, Info, Zap, Loader } from 'lucide-react';
 import { toast } from '../../contexts/ToastContext';
 import { CineFlowProject, CanvasElementType } from '../../types/cineflow';
 import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
@@ -11,8 +11,7 @@ interface ExportModalProps {
 }
 
 type ExportFormat = 'video' | 'image-sequence' | 'json';
-type ExportDestination = 'download' | 'assets' | 'cloud' | 'social';
-type SocialPlatform = 'instagram' | 'youtube' | 'tiktok' | 'twitter' | null;
+type ExportDestination = 'download' | 'assets' | 'cloud';
 
 // Initialize FFmpeg
 let ffmpeg: any = null;
@@ -36,20 +35,11 @@ const loadFFmpeg = async () => {
 const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) => {
   const [exportFormat, setExportFormat] = useState<ExportFormat>('video');
   const [exportDestination, setExportDestination] = useState<ExportDestination>('download');
-  const [socialPlatform, setSocialPlatform] = useState<SocialPlatform>(null);
   const [resolution, setResolution] = useState('1080p');
   const [quality, setQuality] = useState('high');
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
-  const [postTitle, setPostTitle] = useState('');
-  const [postDescription, setPostDescription] = useState('');
-  const [postTags, setPostTags] = useState('');
-  const [schedulePost, setSchedulePost] = useState(false);
-  const [scheduleDate, setScheduleDate] = useState('');
-  const [scheduleTime, setScheduleTime] = useState('');
-  const [selectedThumbnailTime, setSelectedThumbnailTime] = useState(0);
-  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   
@@ -82,64 +72,6 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
       }
     };
   }, [isOpen]);
-
-  // Initialize post title and description from project
-  useEffect(() => {
-    if (isOpen && project) {
-      setPostTitle(project.name || '');
-      setPostDescription(`Created with OpenModel Studio CineFlow`);
-      
-      // Set default tags based on project type
-      const defaultTags = project.tags.length > 0 
-        ? project.tags.join(', ') 
-        : `cineflow, ${project.type.toLowerCase()}, openmodelstudio`;
-      
-      setPostTags(defaultTags);
-      
-      // Set default thumbnail time to 25% of the project duration
-      const defaultThumbnailTime = Math.max(0, Math.min(project.duration * 0.25, project.duration - 0.1));
-      setSelectedThumbnailTime(defaultThumbnailTime);
-      
-      // Generate thumbnail preview
-      generateThumbnailPreview(defaultThumbnailTime);
-    }
-  }, [isOpen, project]);
-  
-  // Generate thumbnail preview at the selected time
-  const generateThumbnailPreview = async (time: number) => {
-    try {
-      const canvas = document.createElement('canvas');
-      
-      // Set canvas dimensions based on selected resolution
-      let width, height;
-      const aspectRatio = project.aspectRatio.split(':').map(Number);
-      const aspectWidth = aspectRatio[0];
-      const aspectHeight = aspectRatio[1];
-      
-      // Use a smaller size for the preview
-      height = 270; // 1/4 of 1080p
-      width = (aspectWidth / aspectHeight) * height;
-      
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      
-      if (!ctx) {
-        throw new Error('Could not get canvas context');
-      }
-      
-      // Render the frame at the selected time
-      await renderFrame(time, canvas, ctx);
-      
-      // Convert canvas to data URL
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-      setThumbnailPreview(dataUrl);
-      
-    } catch (error) {
-      console.error('Error generating thumbnail preview:', error);
-      setThumbnailPreview(null);
-    }
-  };
   
   if (!isOpen) return null;
 
@@ -591,10 +523,6 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
         // In a real app, we would upload to cloud storage
         // For now, just simulate it
         await new Promise(resolve => setTimeout(resolve, 1000));
-      } else if (exportDestination === 'social') {
-        // In a real app, we would upload to the selected social platform
-        // For now, just simulate it
-        await new Promise(resolve => setTimeout(resolve, 1500));
       }
       
       // Clean up
@@ -620,9 +548,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
           ? 'Your video has been downloaded' 
           : exportDestination === 'assets'
             ? 'Your video has been added to your assets'
-            : exportDestination === 'cloud'
-              ? 'Your video has been uploaded to cloud storage'
-              : `Your video has been uploaded to ${socialPlatform}`,
+            : 'Your video has been uploaded to cloud storage',
         duration: 5000
       });
       
@@ -839,15 +765,8 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
     }
   };
 
-  // Function to update thumbnail time
-  const handleThumbnailTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = parseFloat(e.target.value);
-    setSelectedThumbnailTime(newTime);
-    generateThumbnailPreview(newTime);
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
@@ -855,7 +774,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
       />
       
       {/* Modal */}
-      <div className="relative bg-gradient-to-br from-gray-900/95 to-black/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-black/50 w-full max-w-2xl max-h-[90vh] overflow-hidden">
+      <div className="relative bg-gradient-to-br from-gray-900/95 to-black/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-black/50 w-full max-w-2xl overflow-hidden">
         {/* Background elements */}
         <div className="absolute inset-0">
           <div className="absolute top-10 left-10 w-32 h-32 bg-amber-600/20 rounded-full blur-3xl animate-pulse"></div>
@@ -863,15 +782,15 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-yellow-600/10 rounded-full blur-3xl animate-pulse delay-2000"></div>
         </div>
 
-        <div className="relative z-10 flex flex-col max-h-[90vh]">
+        <div className="relative z-10">
           {/* Header */}
-          <div className="p-3 sm:p-4 border-b border-white/10 flex-shrink-0">
-            <div className="flex items-center justify-between mb-1">
+          <div className="p-6 border-b border-white/10">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-3">
                 <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-2 rounded-xl shadow-lg">
                   <Download className="w-5 h-5 text-black" />
                 </div>
-                <h2 className="text-xl font-black text-white">Export Project</h2>
+                <h2 className="text-2xl font-black text-white">Export Project</h2>
               </div>
               {!isExporting && (
                 <button
@@ -882,20 +801,20 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
                 </button>
               )}
             </div>
-            <p className="text-white/70 text-xs sm:text-sm ml-10">
+            <p className="text-white/70 text-sm">
               Export your CineFlow project in various formats and destinations
             </p>
           </div>
 
           {isExporting ? (
             // Export Progress UI
-            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto">
-              <div className="text-center py-4 sm:py-6">
-                <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full mb-3 sm:mb-4">
-                  <Loader className="w-7 h-7 text-white animate-spin" />
+            <div className="p-6 space-y-6">
+              <div className="text-center py-6">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full mb-4">
+                  <Loader className="w-8 h-8 text-white animate-spin" />
                 </div>
-                <h3 className="text-lg sm:text-xl font-bold text-white mb-2">Exporting {exportFormat === 'video' ? 'Video' : exportFormat === 'image-sequence' ? 'Image Sequence' : 'Project'}</h3>
-                <p className="text-white/70 mb-4 sm:mb-6">{statusMessage}</p>
+                <h3 className="text-xl font-bold text-white mb-2">Exporting {exportFormat === 'video' ? 'Video' : exportFormat === 'image-sequence' ? 'Image Sequence' : 'Project'}</h3>
+                <p className="text-white/70 mb-6">{statusMessage}</p>
                 
                 <div className="w-full bg-white/10 rounded-full h-2 mb-2">
                   <div 
@@ -905,7 +824,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
                 </div>
                 <p className="text-white/50 text-sm">{exportProgress}% complete</p>
                 
-                <div className="mt-4 sm:mt-6 text-white/70 text-xs sm:text-sm">
+                <div className="mt-6 text-white/70 text-sm">
                   <p>This may take several minutes depending on your project complexity.</p>
                   <p>Please don't close this window during export.</p>
                 </div>
@@ -913,366 +832,146 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
             </div>
           ) : (
             // Export Options UI
-            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
-              <div className="p-4 space-y-4">
-                {/* Export Format */}
+            <div className="p-6 space-y-6">
+              {/* Export Format */}
+              <div>
+                <h3 className="text-lg font-bold text-white mb-3">Export Format</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <button
+                    onClick={() => setExportFormat('video')}
+                    className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
+                      exportFormat === 'video'
+                        ? 'bg-amber-500/20 border-amber-500/50 text-white'
+                        : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    <Video className="w-6 h-6 mb-2" />
+                    <span className="text-sm font-semibold">Video</span>
+                    <span className="text-xs text-white/50 mt-1">MP4/WebM</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => setExportFormat('image-sequence')}
+                    className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
+                      exportFormat === 'image-sequence'
+                        ? 'bg-amber-500/20 border-amber-500/50 text-white'
+                        : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    <ImageIcon className="w-6 h-6 mb-2" />
+                    <span className="text-sm font-semibold">Images</span>
+                    <span className="text-xs text-white/50 mt-1">PNG Sequence</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => setExportFormat('json')}
+                    className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
+                      exportFormat === 'json'
+                        ? 'bg-amber-500/20 border-amber-500/50 text-white'
+                        : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    <FileJson className="w-6 h-6 mb-2" />
+                    <span className="text-sm font-semibold">Project</span>
+                    <span className="text-xs text-white/50 mt-1">JSON Config</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Export Destination */}
+              <div>
+                <h3 className="text-lg font-bold text-white mb-3">Export Destination</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <button
+                    onClick={() => setExportDestination('download')}
+                    className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
+                      exportDestination === 'download'
+                        ? 'bg-amber-500/20 border-amber-500/50 text-white'
+                        : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    <Download className="w-6 h-6 mb-2" />
+                    <span className="text-sm font-semibold">Download</span>
+                    <span className="text-xs text-white/50 mt-1">Save locally</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => setExportDestination('assets')}
+                    className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
+                      exportDestination === 'assets'
+                        ? 'bg-amber-500/20 border-amber-500/50 text-white'
+                        : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    <Save className="w-6 h-6 mb-2" />
+                    <span className="text-sm font-semibold">Assets</span>
+                    <span className="text-xs text-white/50 mt-1">Save to library</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => setExportDestination('cloud')}
+                    className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
+                      exportDestination === 'cloud'
+                        ? 'bg-amber-500/20 border-amber-500/50 text-white'
+                        : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    <Cloud className="w-6 h-6 mb-2" />
+                    <span className="text-sm font-semibold">Cloud</span>
+                    <span className="text-xs text-white/50 mt-1">Google Drive</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Export Settings */}
+              {exportFormat !== 'json' && (
                 <div>
-                  <h3 className="text-base font-bold text-white mb-2">Export Format</h3>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      onClick={() => setExportFormat('video')}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                        exportFormat === 'video'
-                          ? 'bg-amber-500/20 border-amber-500/50 text-white'
-                          : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <Video className="w-5 h-5 mb-1" />
-                      <span className="text-xs font-semibold">Video</span>
-                      <span className="text-[10px] text-white/50 mt-0.5">MP4/WebM</span>
-                    </button>
+                  <h3 className="text-lg font-bold text-white mb-3">Export Settings</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-white/80 text-sm font-semibold mb-2">
+                        Resolution
+                      </label>
+                      <select
+                        value={resolution}
+                        onChange={(e) => setResolution(e.target.value)}
+                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
+                      >
+                        <option value="720p" className="bg-gray-900">720p (HD)</option>
+                        <option value="1080p" className="bg-gray-900">1080p (Full HD)</option>
+                        <option value="2160p" className="bg-gray-900">2160p (4K)</option>
+                      </select>
+                    </div>
                     
-                    <button
-                      onClick={() => setExportFormat('image-sequence')}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                        exportFormat === 'image-sequence'
-                          ? 'bg-amber-500/20 border-amber-500/50 text-white'
-                          : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <ImageIcon className="w-5 h-5 mb-1" />
-                      <span className="text-xs font-semibold">Images</span>
-                      <span className="text-[10px] text-white/50 mt-0.5">PNG Sequence</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => setExportFormat('json')}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                        exportFormat === 'json'
-                          ? 'bg-amber-500/20 border-amber-500/50 text-white'
-                          : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <FileJson className="w-5 h-5 mb-1" />
-                      <span className="text-xs font-semibold">Project</span>
-                      <span className="text-[10px] text-white/50 mt-0.5">JSON Config</span>
-                    </button>
+                    <div>
+                      <label className="block text-white/80 text-sm font-semibold mb-2">
+                        Quality
+                      </label>
+                      <select
+                        value={quality}
+                        onChange={(e) => setQuality(e.target.value)}
+                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
+                      >
+                        <option value="low" className="bg-gray-900">Low (Faster)</option>
+                        <option value="medium" className="bg-gray-900">Medium</option>
+                        <option value="high" className="bg-gray-900">High (Better Quality)</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
+              )}
 
-                {/* Export Destination */}
-                <div>
-                  <h3 className="text-base font-bold text-white mb-2">Export Destination</h3>
-                  <div className="grid grid-cols-4 gap-2">
-                    <button
-                      onClick={() => {
-                        setExportDestination('download');
-                        setSocialPlatform(null);
-                      }}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                        exportDestination === 'download'
-                          ? 'bg-amber-500/20 border-amber-500/50 text-white'
-                          : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <Download className="w-5 h-5 mb-1" />
-                      <span className="text-xs font-semibold">Download</span>
-                      <span className="text-[10px] text-white/50 mt-0.5">Save locally</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => {
-                        setExportDestination('assets');
-                        setSocialPlatform(null);
-                      }}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                        exportDestination === 'assets'
-                          ? 'bg-amber-500/20 border-amber-500/50 text-white'
-                          : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <Save className="w-5 h-5 mb-1" />
-                      <span className="text-xs font-semibold">Assets</span>
-                      <span className="text-[10px] text-white/50 mt-0.5">Save to library</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => {
-                        setExportDestination('cloud');
-                        setSocialPlatform(null);
-                      }}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                        exportDestination === 'cloud'
-                          ? 'bg-amber-500/20 border-amber-500/50 text-white'
-                          : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <Cloud className="w-5 h-5 mb-1" />
-                      <span className="text-xs font-semibold">Cloud</span>
-                      <span className="text-[10px] text-white/50 mt-0.5">Google Drive</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => setExportDestination('social')}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                        exportDestination === 'social'
-                          ? 'bg-amber-500/20 border-amber-500/50 text-white'
-                          : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <Instagram className="w-5 h-5 mb-1" />
-                      <span className="text-xs font-semibold">Social</span>
-                      <span className="text-[10px] text-white/50 mt-0.5">Post directly</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Social Platform Selection (if social destination is selected) */}
-                {exportDestination === 'social' && (
+              {/* Info Box */}
+              <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-xl p-4">
+                <div className="flex items-start space-x-3">
+                  <Info className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="text-base font-bold text-white mb-2">Select Platform</h3>
-                    <div className="grid grid-cols-4 gap-2">
-                      <button
-                        onClick={() => setSocialPlatform('instagram')}
-                        className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                          socialPlatform === 'instagram'
-                            ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/50 text-white'
-                            : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                        }`}
-                      >
-                        <Instagram className="w-5 h-5 mb-1" />
-                        <span className="text-xs font-semibold">Instagram</span>
-                      </button>
-                      
-                      <button
-                        onClick={() => setSocialPlatform('youtube')}
-                        className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                          socialPlatform === 'youtube'
-                            ? 'bg-gradient-to-br from-red-500/20 to-red-600/20 border-red-500/50 text-white'
-                            : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                        }`}
-                      >
-                        <Youtube className="w-5 h-5 mb-1" />
-                        <span className="text-xs font-semibold">YouTube</span>
-                      </button>
-                      
-                      <button
-                        onClick={() => setSocialPlatform('tiktok')}
-                        className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                          socialPlatform === 'tiktok'
-                            ? 'bg-gradient-to-br from-cyan-500/20 to-black/20 border-cyan-500/50 text-white'
-                            : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                        }`}
-                      >
-                        <Video className="w-5 h-5 mb-1" />
-                        <span className="text-xs font-semibold">TikTok</span>
-                      </button>
-                      
-                      <button
-                        onClick={() => setSocialPlatform('twitter')}
-                        className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                          socialPlatform === 'twitter'
-                            ? 'bg-gradient-to-br from-blue-500/20 to-blue-600/20 border-blue-500/50 text-white'
-                            : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                        }`}
-                      >
-                        <Twitter className="w-5 h-5 mb-1" />
-                        <span className="text-xs font-semibold">X/Twitter</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Social Media Post Details (if social platform is selected) */}
-                {exportDestination === 'social' && socialPlatform && (
-                  <div className="space-y-3">
-                    <h3 className="text-base font-bold text-white mb-2">Post Details</h3>
-                    
-                    <div>
-                      <label className="block text-white/80 text-xs font-semibold mb-1">
-                        Title
-                      </label>
-                      <input
-                        type="text"
-                        value={postTitle}
-                        onChange={(e) => setPostTitle(e.target.value)}
-                        placeholder="Enter post title"
-                        className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/50 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition-all text-sm"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-white/80 text-xs font-semibold mb-1">
-                        Description
-                      </label>
-                      <textarea
-                        value={postDescription}
-                        onChange={(e) => setPostDescription(e.target.value)}
-                        placeholder="Enter post description"
-                        rows={2}
-                        className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/50 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition-all text-sm resize-none"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-white/80 text-xs font-semibold mb-1">
-                        Tags (comma separated)
-                      </label>
-                      <input
-                        type="text"
-                        value={postTags}
-                        onChange={(e) => setPostTags(e.target.value)}
-                        placeholder="tag1, tag2, tag3"
-                        className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/50 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition-all text-sm"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-white/80 text-xs font-semibold mb-1">
-                        Thumbnail
-                      </label>
-                      <div className="flex items-center space-x-3">
-                        <div className="w-16 h-16 bg-white/10 rounded-lg overflow-hidden flex-shrink-0">
-                          {thumbnailPreview ? (
-                            <img 
-                              src={thumbnailPreview} 
-                              alt="Thumbnail preview" 
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Camera className="w-6 h-6 text-white/40" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <input
-                            type="range"
-                            min="0"
-                            max={project.duration}
-                            step="0.1"
-                            value={selectedThumbnailTime}
-                            onChange={handleThumbnailTimeChange}
-                            className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer accent-amber-500"
-                          />
-                          <div className="flex justify-between text-white/50 text-xs mt-1">
-                            <span>0:00</span>
-                            <span>{Math.floor(selectedThumbnailTime / 60)}:{Math.floor(selectedThumbnailTime % 60).toString().padStart(2, '0')}</span>
-                            <span>{Math.floor(project.duration / 60)}:{Math.floor(project.duration % 60).toString().padStart(2, '0')}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="schedulePost"
-                        checked={schedulePost}
-                        onChange={(e) => setSchedulePost(e.target.checked)}
-                        className="w-4 h-4 rounded border-white/30 bg-white/10 text-amber-500 focus:ring-amber-400 focus:ring-1"
-                      />
-                      <label htmlFor="schedulePost" className="text-white/80 text-xs font-semibold">
-                        Schedule for later
-                      </label>
-                    </div>
-                    
-                    {schedulePost && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-white/80 text-xs font-semibold mb-1">
-                            Date
-                          </label>
-                          <div className="relative">
-                            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
-                            <input
-                              type="date"
-                              value={scheduleDate}
-                              onChange={(e) => setScheduleDate(e.target.value)}
-                              className="w-full bg-white/10 border border-white/20 rounded-lg pl-10 pr-3 py-2 text-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition-all text-sm"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-white/80 text-xs font-semibold mb-1">
-                            Time
-                          </label>
-                          <div className="relative">
-                            <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
-                            <input
-                              type="time"
-                              value={scheduleTime}
-                              onChange={(e) => setScheduleTime(e.target.value)}
-                              className="w-full bg-white/10 border border-white/20 rounded-lg pl-10 pr-3 py-2 text-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition-all text-sm"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-lg p-3">
-                      <div className="flex items-start space-x-2">
-                        <Info className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                        <p className="text-white/70 text-xs">
-                          {socialPlatform === 'instagram' && 'Your video will be posted to Instagram. Videos should be between 3 seconds and 60 seconds for Reels.'}
-                          {socialPlatform === 'youtube' && 'Your video will be uploaded to YouTube. Make sure to set an engaging title and description.'}
-                          {socialPlatform === 'tiktok' && 'Your video will be posted to TikTok. Videos should be between 15 seconds and 3 minutes.'}
-                          {socialPlatform === 'twitter' && 'Your video will be posted to X/Twitter. Videos should be under 2 minutes and 20 seconds.'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Export Settings */}
-                {exportFormat !== 'json' && (
-                  <div>
-                    <h3 className="text-base font-bold text-white mb-2">Export Settings</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-white/80 text-xs font-semibold mb-1">
-                          Resolution
-                        </label>
-                        <select
-                          value={resolution}
-                          onChange={(e) => setResolution(e.target.value)}
-                          className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition-all"
-                        >
-                          <option value="720p" className="bg-gray-900">720p (HD)</option>
-                          <option value="1080p" className="bg-gray-900">1080p (Full HD)</option>
-                          <option value="2160p" className="bg-gray-900">2160p (4K)</option>
-                        </select>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-white/80 text-xs font-semibold mb-1">
-                          Quality
-                        </label>
-                        <select
-                          value={quality}
-                          onChange={(e) => setQuality(e.target.value)}
-                          className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition-all"
-                        >
-                          <option value="low" className="bg-gray-900">Low (Faster)</option>
-                          <option value="medium" className="bg-gray-900">Medium</option>
-                          <option value="high" className="bg-gray-900">High (Better Quality)</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Info Box */}
-                <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-lg p-3">
-                  <div className="flex items-start space-x-2">
-                    <Info className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-white/70 text-xs">
-                        {exportFormat === 'video' && 'Video export may take several minutes depending on the complexity and duration of your project. Audio tracks will be automatically mixed and included in the final video.'}
-                        {exportFormat === 'image-sequence' && 'Image sequence will be exported as a ZIP file containing PNG images for each frame.'}
-                        {exportFormat === 'json' && 'JSON export contains your project configuration for backup or sharing with others.'}
-                      </p>
-                    </div>
+                    <p className="text-amber-300 text-sm font-semibold mb-1">Export Information</p>
+                    <p className="text-white/70 text-xs">
+                      {exportFormat === 'video' && 'Video export may take several minutes depending on the complexity and duration of your project. Audio tracks will be automatically mixed and included in the final video.'}
+                      {exportFormat === 'image-sequence' && 'Image sequence will be exported as a ZIP file containing PNG images for each frame.'}
+                      {exportFormat === 'json' && 'JSON export contains your project configuration for backup or sharing with others.'}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1280,21 +979,21 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
           )}
 
           {/* Footer */}
-          <div className="p-3 sm:p-4 border-t border-white/10 flex justify-end space-x-3 flex-shrink-0">
+          <div className="p-6 border-t border-white/10 flex justify-end space-x-4">
             {!isExporting && (
               <>
                 <button
                   onClick={onClose}
-                  className="px-3 py-2 rounded-lg font-semibold bg-white/10 hover:bg-white/20 text-white transition-colors text-sm"
+                  className="px-4 py-2 rounded-xl font-semibold bg-white/10 hover:bg-white/20 text-white transition-colors"
                 >
                   Cancel
                 </button>
                 
                 <button
                   onClick={handleExport}
-                  className="bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 shadow-lg flex items-center space-x-2 text-sm"
+                  className="bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black px-6 py-2 rounded-xl hover:scale-105 transition-all duration-300 shadow-lg flex items-center space-x-2"
                 >
-                  <Zap className="w-4 h-4" />
+                  <Zap className="w-5 h-5" />
                   <span>Export Now</span>
                 </button>
               </>
