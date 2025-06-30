@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { CanvasElementType } from '../../types/cineflow';
-import { Play, Pause, ChevronLeft, ChevronRight, Clock, Plus, Minus } from 'lucide-react';
+import { Play, Pause, ChevronLeft, ChevronRight, Clock, Plus, Minus, Layers, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface TimelineProps {
   elements: CanvasElementType[];
@@ -35,6 +35,7 @@ const Timeline: React.FC<TimelineProps> = ({
   const [timelineWidth, setTimelineWidth] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [customDuration, setCustomDuration] = useState(duration);
+  const [showLayerPanel, setShowLayerPanel] = useState(false);
 
   // Update timeline width on resize
   useEffect(() => {
@@ -196,6 +197,24 @@ const Timeline: React.FC<TimelineProps> = ({
     }
   };
 
+  // Move element layer up/down
+  const handleLayerChange = (elementId: string, direction: 'up' | 'down') => {
+    const element = elements.find(el => el.id === elementId);
+    if (!element) return;
+    
+    const currentLayer = element.layer || 0;
+    const newLayer = direction === 'up' ? currentLayer + 1 : Math.max(0, currentLayer - 1);
+    
+    onUpdateElement(elementId, { layer: newLayer });
+  };
+
+  // Sort elements by layer for the layer panel
+  const sortedElements = [...elements].sort((a, b) => {
+    const layerA = a.layer || 0;
+    const layerB = b.layer || 0;
+    return layerB - layerA; // Reverse sort so highest layer is at top
+  });
+
   return (
     <div className="flex flex-col bg-gray-900/90 border-t border-white/10">
       {/* Timeline controls */}
@@ -215,6 +234,14 @@ const Timeline: React.FC<TimelineProps> = ({
         </div>
         
         <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setShowLayerPanel(!showLayerPanel)}
+            className={`p-1.5 rounded-lg ${showLayerPanel ? 'bg-amber-500 text-black' : 'bg-white/10 hover:bg-white/20 text-white'} transition-colors`}
+            title="Toggle Layer Panel"
+          >
+            <Layers className="w-3.5 h-3.5" />
+          </button>
+          
           <div className="flex items-center space-x-1">
             <button
               onClick={handleZoomOut}
@@ -247,82 +274,159 @@ const Timeline: React.FC<TimelineProps> = ({
         </div>
       </div>
 
-      {/* Timeline ruler */}
-      <div className="h-6 border-b border-white/10 relative">
-        <div className="absolute inset-0 flex">
-          {Array.from({ length: Math.ceil(customDuration) + 1 }).map((_, i) => (
-            <div 
-              key={i} 
-              className="flex-shrink-0 border-l border-white/20 h-full relative"
-              style={{ width: `${timeToPosition(1)}px` }}
-            >
-              <span className="absolute bottom-1 left-1 text-white/50 text-[10px]">{i}s</span>
+      <div className="flex flex-1">
+        {/* Layer Panel (when visible) */}
+        {showLayerPanel && (
+          <div className="w-48 border-r border-white/10 bg-gray-900/80 overflow-y-auto">
+            <div className="p-2 border-b border-white/10">
+              <h3 className="text-white font-bold text-xs flex items-center">
+                <Layers className="w-3 h-3 mr-1" />
+                Layers
+              </h3>
             </div>
-          ))}
-        </div>
-      </div>
+            <div className="p-2 space-y-1">
+              {sortedElements.map(element => (
+                <div 
+                  key={element.id}
+                  className={`flex items-center justify-between p-1.5 rounded-lg text-xs ${
+                    selectedElementId === element.id ? 'bg-amber-500/20 border border-amber-500/50' : 'hover:bg-white/5'
+                  } cursor-pointer`}
+                  onClick={() => onSelectElement(element.id)}
+                >
+                  <div className="flex items-center space-x-1 overflow-hidden">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                      element.type === 'image' ? 'bg-blue-500' :
+                      element.type === 'video' ? 'bg-red-500' :
+                      element.type === 'audio' ? 'bg-purple-500' :
+                      element.type === 'text' ? 'bg-green-500' :
+                      'bg-amber-500'
+                    }`}></span>
+                    <span className="text-white/80 truncate">{element.name || element.type}</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleLayerChange(element.id, 'up');
+                      }}
+                      className="text-white/60 hover:text-white p-0.5 rounded hover:bg-white/10"
+                      title="Move Up"
+                    >
+                      <ArrowUp className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleLayerChange(element.id, 'down');
+                      }}
+                      className="text-white/60 hover:text-white p-0.5 rounded hover:bg-white/10"
+                      title="Move Down"
+                    >
+                      <ArrowDown className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {elements.length === 0 && (
+                <div className="text-white/50 text-xs text-center py-2">
+                  No elements added yet
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
-      {/* Timeline content */}
-      <div 
-        className="flex-1 min-h-[120px] overflow-y-auto relative"
-        ref={timelineRef}
-        onClick={handleTimelineClick}
-      >
-        {/* Playhead */}
-        <div 
-          className="absolute top-0 bottom-0 w-0.5 bg-amber-500 z-10"
-          style={{ left: `${timeToPosition(currentTime)}px` }}
-          onMouseDown={handlePlayheadMouseDown}
-        >
-          <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-amber-500 rounded-full cursor-ew-resize"></div>
-        </div>
-        
-        {/* Element timelines */}
-        <div className="p-2 space-y-2" style={{ width: `${timelineWidth * zoom}px`, minWidth: '100%' }}>
-          {elements.map(element => (
-            <div 
-              key={element.id}
-              className={`h-10 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer ${
-                selectedElementId === element.id ? 'border border-amber-500' : ''
-              }`}
-              onClick={() => onSelectElement(element.id)}
-            >
-              {/* Element info */}
-              <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center px-2 pointer-events-none">
-                <span className="text-white/80 text-xs truncate max-w-[100px]">{element.name || element.type}</span>
-              </div>
-              
-              {/* Element timeline bar */}
-              <div 
-                className={`absolute h-10 rounded-lg ${
-                  element.type === 'image' ? 'bg-blue-500/70' :
-                  element.type === 'video' ? 'bg-red-500/70' :
-                  element.type === 'audio' ? 'bg-purple-500/70' :
-                  element.type === 'text' ? 'bg-green-500/70' :
-                  'bg-amber-500/70'
-                } flex items-center px-2`}
-                style={{ 
-                  left: `${timeToPosition(element.startTime)}px`,
-                  width: `${timeToPosition(element.duration)}px`,
-                }}
-                onMouseDown={(e) => handleElementMouseDown(e, element.id, 'move')}
-              >
-                <span className="text-white text-xs truncate max-w-full">
-                  {element.name || element.type}
-                </span>
-                
-                {/* Resize handles */}
+        {/* Timeline ruler and content */}
+        <div className="flex-1 flex flex-col">
+          {/* Timeline ruler */}
+          <div className="h-6 border-b border-white/10 relative">
+            <div className="absolute inset-0 flex">
+              {Array.from({ length: Math.ceil(customDuration) + 1 }).map((_, i) => (
                 <div 
-                  className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize"
-                  onMouseDown={(e) => handleElementMouseDown(e, element.id, 'start')}
-                ></div>
-                <div 
-                  className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize"
-                  onMouseDown={(e) => handleElementMouseDown(e, element.id, 'end')}
-                ></div>
-              </div>
+                  key={i} 
+                  className="flex-shrink-0 border-l border-white/20 h-full relative"
+                  style={{ width: `${timeToPosition(1)}px` }}
+                >
+                  <span className="absolute bottom-1 left-1 text-white/50 text-[10px]">{i}s</span>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+
+          {/* Timeline content */}
+          <div 
+            className="flex-1 min-h-[120px] overflow-y-auto relative"
+            ref={timelineRef}
+            onClick={handleTimelineClick}
+          >
+            {/* Playhead */}
+            <div 
+              className="absolute top-0 bottom-0 w-0.5 bg-amber-500 z-10"
+              style={{ left: `${timeToPosition(currentTime)}px` }}
+              onMouseDown={handlePlayheadMouseDown}
+            >
+              <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-amber-500 rounded-full cursor-ew-resize"></div>
+            </div>
+            
+            {/* Element timelines */}
+            <div className="p-2 space-y-2" style={{ width: `${timelineWidth * zoom}px`, minWidth: '100%' }}>
+              {elements.map(element => {
+                // Check if element should be visible based on timeline
+                const isVisible = currentTime >= element.startTime && 
+                                currentTime < (element.startTime + element.duration);
+                
+                return (
+                  <div 
+                    key={element.id}
+                    className={`h-10 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer ${
+                      selectedElementId === element.id ? 'border border-amber-500' : ''
+                    }`}
+                    onClick={() => onSelectElement(element.id)}
+                  >
+                    {/* Element info */}
+                    <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center px-2 pointer-events-none">
+                      <span className="text-white/80 text-xs truncate max-w-[100px]">{element.name || element.type}</span>
+                    </div>
+                    
+                    {/* Element timeline bar */}
+                    <div 
+                      className={`absolute h-10 rounded-lg ${
+                        element.type === 'image' ? 'bg-blue-500/70' :
+                        element.type === 'video' ? 'bg-red-500/70' :
+                        element.type === 'audio' ? 'bg-purple-500/70' :
+                        element.type === 'text' ? 'bg-green-500/70' :
+                        'bg-amber-500/70'
+                      } flex items-center px-2 ${isVisible ? 'opacity-100' : 'opacity-70'}`}
+                      style={{ 
+                        left: `${timeToPosition(element.startTime)}px`,
+                        width: `${timeToPosition(element.duration)}px`,
+                      }}
+                      onMouseDown={(e) => handleElementMouseDown(e, element.id, 'move')}
+                    >
+                      <span className="text-white text-xs truncate max-w-full">
+                        {element.name || element.type}
+                      </span>
+                      
+                      {/* Layer indicator */}
+                      <div className="ml-1 px-1 bg-black/30 rounded text-[10px] text-white/80">
+                        L{element.layer || 0}
+                      </div>
+                      
+                      {/* Resize handles */}
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize"
+                        onMouseDown={(e) => handleElementMouseDown(e, element.id, 'start')}
+                      ></div>
+                      <div 
+                        className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize"
+                        onMouseDown={(e) => handleElementMouseDown(e, element.id, 'end')}
+                      ></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
     </div>

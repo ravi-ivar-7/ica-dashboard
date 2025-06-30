@@ -15,6 +15,7 @@ export interface CanvasElementType {
   startTime: number;
   duration: number;
   poster?: string; // Added for video preview
+  layer?: number; // Added for z-index control
   
   // Text-specific properties
   fontFamily?: string;

@@ -127,6 +127,13 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   };
 
+  // Sort elements by layer for proper stacking
+  const sortedElements = [...elements].sort((a, b) => {
+    const layerA = a.layer || 0;
+    const layerB = b.layer || 0;
+    return layerA - layerB;
+  });
+
   return (
     <div className="relative flex items-center justify-center w-full h-full overflow-hidden bg-gray-900">
       <div
@@ -143,18 +150,29 @@ const Canvas: React.FC<CanvasProps> = ({
         onDrop={handleDrop}
       >
         {/* Canvas elements */}
-        {elements.map(element => (
-          <CanvasElement
-            key={element.id}
-            element={element}
-            isSelected={selectedElementId === element.id}
-            isPlaying={isPlaying}
-            currentTime={currentTime}
-            onSelect={onSelectElement}
-            onUpdate={onUpdateElement}
-            onDelete={onDeleteElement}
-          />
-        ))}
+        {sortedElements.map(element => {
+          // Check if element should be visible based on timeline
+          const isVisible = currentTime >= element.startTime && 
+                           currentTime < (element.startTime + element.duration);
+          
+          // Only render if visible or selected
+          if (isVisible || selectedElementId === element.id) {
+            return (
+              <CanvasElement
+                key={element.id}
+                element={element}
+                isSelected={selectedElementId === element.id}
+                isPlaying={isPlaying}
+                currentTime={currentTime}
+                isVisible={isVisible}
+                onSelect={onSelectElement}
+                onUpdate={onUpdateElement}
+                onDelete={onDeleteElement}
+              />
+            );
+          }
+          return null;
+        })}
       </div>
     </div>
   );

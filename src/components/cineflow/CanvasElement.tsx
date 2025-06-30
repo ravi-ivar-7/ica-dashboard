@@ -6,6 +6,7 @@ interface CanvasElementProps {
   isSelected: boolean;
   isPlaying: boolean;
   currentTime: number;
+  isVisible: boolean;
   onSelect: (id: string) => void;
   onUpdate: (id: string, updates: Partial<CanvasElementType>) => void;
   onDelete: (id: string) => void;
@@ -16,6 +17,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
   isSelected,
   isPlaying,
   currentTime,
+  isVisible,
   onSelect,
   onUpdate,
   onDelete
@@ -27,10 +29,6 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
   const [videoPlaybackBlocked, setVideoPlaybackBlocked] = useState(false);
   const elementRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-
-  // Check if element should be visible based on timeline
-  const isVisible = currentTime >= element.startTime && 
-                   currentTime < (element.startTime + element.duration);
 
   // Handle element selection
   const handleSelect = (e: React.MouseEvent) => {
@@ -117,7 +115,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
   // Control video playback based on isPlaying state
   useEffect(() => {
     if (element.type === 'video' && videoRef.current) {
-      if (isPlaying) {
+      if (isPlaying && isVisible) {
         videoRef.current.currentTime = currentTime - element.startTime;
         videoRef.current.play().catch(err => {
           // Handle autoplay restrictions gracefully without logging errors
@@ -133,7 +131,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
         videoRef.current.pause();
       }
     }
-  }, [isPlaying, currentTime, element]);
+  }, [isPlaying, currentTime, element, isVisible]);
 
   // Reset video playback blocked state when user interacts
   const handleUserVideoInteraction = () => {
@@ -206,21 +204,19 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
     }
   };
 
-  if (!isVisible && !isSelected) {
-    return null;
-  }
-
   return (
     <div
       ref={elementRef}
-      className={`absolute ${isSelected ? 'z-10' : 'z-0'} ${isVisible || isSelected ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200 animate-fade-in`}
+      className={`absolute ${isSelected ? 'z-10' : 'z-0'} transition-opacity duration-200 animate-fade-in`}
       style={{
         left: `${element.x}px`,
         top: `${element.y}px`,
         width: `${element.width}px`,
         height: `${element.height}px`,
         transform: `rotate(${element.rotation || 0}deg)`,
-        opacity: element.opacity || 1,
+        opacity: isVisible ? (element.opacity || 1) : (isSelected ? 0.5 : 0),
+        pointerEvents: isVisible || isSelected ? 'auto' : 'none',
+        zIndex: element.layer || 0,
       }}
       onClick={handleSelect}
       onMouseDown={handleMoveStart}

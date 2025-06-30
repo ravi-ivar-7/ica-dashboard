@@ -121,6 +121,14 @@ export default function CineFlowEditor() {
         const savedProject = localStorage.getItem(`cineflow-project-${id}`);
         if (savedProject) {
           const parsedProject = JSON.parse(savedProject);
+          
+          // Ensure all elements have a layer property
+          const elementsWithLayers = parsedProject.elements.map((el: CanvasElementType, index: number) => ({
+            ...el,
+            layer: el.layer !== undefined ? el.layer : index
+          }));
+          
+          parsedProject.elements = elementsWithLayers;
           setProject(parsedProject);
           
           // Initialize history
@@ -278,6 +286,9 @@ export default function CineFlowEditor() {
     // Create a new element based on the asset type
     let newElement: CanvasElementType;
     
+    // Find the highest layer to place the new element on top
+    const highestLayer = project.elements.reduce((max, el) => Math.max(max, el.layer || 0), 0);
+    
     switch (asset.type) {
       case 'image':
         newElement = {
@@ -290,7 +301,8 @@ export default function CineFlowEditor() {
           width: 300,
           height: 200,
           startTime: 0,
-          duration: 5
+          duration: 5,
+          layer: highestLayer + 1
         };
         break;
       case 'video':
@@ -305,7 +317,8 @@ export default function CineFlowEditor() {
           height: 225,
           startTime: 0,
           duration: 10,
-          poster: asset.src // Add poster for video preview
+          poster: asset.src, // Add poster for video preview
+          layer: highestLayer + 1
         };
         break;
       case 'audio':
@@ -319,7 +332,8 @@ export default function CineFlowEditor() {
           width: 0,
           height: 0,
           startTime: 0,
-          duration: 15
+          duration: 15,
+          layer: highestLayer + 1
         };
         break;
       case 'text':
@@ -337,7 +351,8 @@ export default function CineFlowEditor() {
           fontSize: asset.style?.fontSize || 24,
           fontWeight: asset.style?.fontWeight || 'normal',
           color: asset.style?.color || '#ffffff',
-          textAlign: asset.style?.textAlign || 'center'
+          textAlign: asset.style?.textAlign || 'center',
+          layer: highestLayer + 1
         };
         break;
       case 'element':
@@ -351,7 +366,8 @@ export default function CineFlowEditor() {
           width: 100,
           height: 100,
           startTime: 0,
-          duration: 5
+          duration: 5,
+          layer: highestLayer + 1
         };
         break;
       default:
@@ -380,10 +396,13 @@ export default function CineFlowEditor() {
     toast.success(`Added ${asset.name || asset.type}`, {
       duration: 2000
     });
-  }, [addToHistory]);
+  }, [project.elements, addToHistory]);
   
   // Handle adding text
   const handleAddText = useCallback((textStyle: any) => {
+    // Find the highest layer to place the new element on top
+    const highestLayer = project.elements.reduce((max, el) => Math.max(max, el.layer || 0), 0);
+    
     const newElement: CanvasElementType = {
       id: `text-${Date.now()}`,
       type: 'text',
@@ -398,7 +417,8 @@ export default function CineFlowEditor() {
       fontSize: textStyle.style?.fontSize || 24,
       fontWeight: textStyle.style?.fontWeight || 'normal',
       color: textStyle.style?.color || '#ffffff',
-      textAlign: textStyle.style?.textAlign || 'center'
+      textAlign: textStyle.style?.textAlign || 'center',
+      layer: highestLayer + 1
     };
     
     setProject(prev => {
@@ -413,10 +433,13 @@ export default function CineFlowEditor() {
     });
     
     setSelectedElementId(newElement.id);
-  }, [addToHistory]);
+  }, [project.elements, addToHistory]);
   
   // Handle adding element
   const handleAddElement = useCallback((element: any) => {
+    // Find the highest layer to place the new element on top
+    const highestLayer = project.elements.reduce((max, el) => Math.max(max, el.layer || 0), 0);
+    
     const newElement: CanvasElementType = {
       id: `element-${Date.now()}`,
       type: 'element',
@@ -427,7 +450,8 @@ export default function CineFlowEditor() {
       width: 100,
       height: 100,
       startTime: 0,
-      duration: 5
+      duration: 5,
+      layer: highestLayer + 1
     };
     
     setProject(prev => {
@@ -442,7 +466,7 @@ export default function CineFlowEditor() {
     });
     
     setSelectedElementId(newElement.id);
-  }, [addToHistory]);
+  }, [project.elements, addToHistory]);
   
   // Handle applying template
   const handleApplyTemplate = useCallback((template: Template) => {
@@ -454,9 +478,10 @@ export default function CineFlowEditor() {
     }
     
     // Generate new IDs for template elements to avoid conflicts
-    const elementsWithNewIds = template.elements.map(el => ({
+    const elementsWithNewIds = template.elements.map((el, index) => ({
       ...el,
-      id: `${el.id}-${Date.now()}`
+      id: `${el.id}-${Date.now()}`,
+      layer: el.layer !== undefined ? el.layer : index
     }));
     
     setProject(prev => {
