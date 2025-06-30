@@ -30,7 +30,6 @@ const Canvas: React.FC<CanvasProps> = ({
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [scale, setScale] = useState(1);
   const [isResizing, setIsResizing] = useState(false);
-  const [resizeDirection, setResizeDirection] = useState<string | null>(null);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [startSize, setStartSize] = useState({ width: 0, height: 0 });
 
@@ -134,11 +133,10 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   };
 
-  // Handle canvas resize
-  const handleResizeStart = (e: React.MouseEvent, direction: string) => {
+  // Handle canvas resize from bottom-right corner only
+  const handleResizeStart = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsResizing(true);
-    setResizeDirection(direction);
     setStartPos({ x: e.clientX, y: e.clientY });
     setStartSize({ width: canvasSize.width, height: canvasSize.height });
   };
@@ -153,33 +151,17 @@ const Canvas: React.FC<CanvasProps> = ({
   // Handle mouse move for resizing
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing || !resizeDirection) return;
+      if (!isResizing) return;
       
       const deltaX = e.clientX - startPos.x;
-      const deltaY = e.clientY - startPos.y;
       
-      // Calculate new dimensions based on resize direction
-      let newWidth = startSize.width;
-      let newHeight = startSize.height;
-      
+      // Calculate new dimensions based on aspect ratio
       const [aspectWidth, aspectHeight] = aspectRatio.split(':').map(Number);
       const aspectRatioValue = aspectWidth / aspectHeight;
       
-      if (resizeDirection.includes('right')) {
-        newWidth = Math.max(200, startSize.width + deltaX);
-        newHeight = newWidth / aspectRatioValue;
-      } else if (resizeDirection.includes('left')) {
-        newWidth = Math.max(200, startSize.width - deltaX);
-        newHeight = newWidth / aspectRatioValue;
-      }
-      
-      if (resizeDirection.includes('bottom')) {
-        newHeight = Math.max(200, startSize.height + deltaY);
-        newWidth = newHeight * aspectRatioValue;
-      } else if (resizeDirection.includes('top')) {
-        newHeight = Math.max(200, startSize.height - deltaY);
-        newWidth = newHeight * aspectRatioValue;
-      }
+      // Resize from bottom-right corner only, maintaining aspect ratio
+      let newWidth = Math.max(200, startSize.width + deltaX);
+      let newHeight = newWidth / aspectRatioValue;
       
       // Update canvas size
       setCanvasSize({ width: newWidth, height: newHeight });
@@ -188,7 +170,6 @@ const Canvas: React.FC<CanvasProps> = ({
     
     const handleMouseUp = () => {
       setIsResizing(false);
-      setResizeDirection(null);
     };
     
     if (isResizing) {
@@ -200,7 +181,7 @@ const Canvas: React.FC<CanvasProps> = ({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing, resizeDirection, startPos, startSize, aspectRatio]);
+  }, [isResizing, startPos, startSize, aspectRatio]);
 
   return (
     <div 
@@ -261,25 +242,11 @@ const Canvas: React.FC<CanvasProps> = ({
           );
         })}
         
-        {/* Resize handles */}
-        <div className="absolute top-0 right-0 w-4 h-4 bg-amber-500 rounded-full cursor-ne-resize transform translate-x-1/2 -translate-y-1/2"
-             onMouseDown={(e) => handleResizeStart(e, 'right-top')}></div>
-        <div className="absolute bottom-0 right-0 w-4 h-4 bg-amber-500 rounded-full cursor-se-resize transform translate-x-1/2 translate-y-1/2"
-             onMouseDown={(e) => handleResizeStart(e, 'right-bottom')}></div>
-        <div className="absolute bottom-0 left-0 w-4 h-4 bg-amber-500 rounded-full cursor-sw-resize transform -translate-x-1/2 translate-y-1/2"
-             onMouseDown={(e) => handleResizeStart(e, 'left-bottom')}></div>
-        <div className="absolute top-0 left-0 w-4 h-4 bg-amber-500 rounded-full cursor-nw-resize transform -translate-x-1/2 -translate-y-1/2"
-             onMouseDown={(e) => handleResizeStart(e, 'left-top')}></div>
-        
-        {/* Side resize handles */}
-        <div className="absolute top-1/2 right-0 w-4 h-8 bg-amber-500 rounded-full cursor-e-resize transform translate-x-1/2 -translate-y-1/2"
-             onMouseDown={(e) => handleResizeStart(e, 'right')}></div>
-        <div className="absolute top-0 left-1/2 w-8 h-4 bg-amber-500 rounded-full cursor-n-resize transform -translate-x-1/2 -translate-y-1/2"
-             onMouseDown={(e) => handleResizeStart(e, 'top')}></div>
-        <div className="absolute top-1/2 left-0 w-4 h-8 bg-amber-500 rounded-full cursor-w-resize transform -translate-x-1/2 -translate-y-1/2"
-             onMouseDown={(e) => handleResizeStart(e, 'left')}></div>
-        <div className="absolute bottom-0 left-1/2 w-8 h-4 bg-amber-500 rounded-full cursor-s-resize transform -translate-x-1/2 translate-y-1/2"
-             onMouseDown={(e) => handleResizeStart(e, 'bottom')}></div>
+        {/* Bottom-right resize handle only */}
+        <div 
+          className="absolute bottom-0 right-0 w-6 h-6 bg-amber-500 rounded-full cursor-se-resize transform translate-x-1/2 translate-y-1/2"
+          onMouseDown={handleResizeStart}
+        ></div>
       </div>
     </div>
   );

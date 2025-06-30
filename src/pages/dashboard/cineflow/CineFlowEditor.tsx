@@ -446,12 +446,23 @@ export default function CineFlowEditor() {
     // Find the highest layer to place the new element on top
     const highestLayer = project.elements.reduce((max, el) => Math.max(max, el.layer || 0), 0);
     
+    // Calculate center position of canvas
+    const canvasElement = document.querySelector('.relative.bg-black.shadow-2xl');
+    let centerX = 100;
+    let centerY = 100;
+    
+    if (canvasElement) {
+      const rect = canvasElement.getBoundingClientRect();
+      centerX = rect.width / 2 - 150;
+      centerY = rect.height / 2 - 50;
+    }
+    
     const newElement: CanvasElementType = {
       id: `text-${Date.now()}`,
       type: 'text',
       text: 'Add your text here',
-      x: 100,
-      y: 100,
+      x: centerX,
+      y: centerY,
       width: 300,
       height: 100,
       startTime: 0,
@@ -483,13 +494,24 @@ export default function CineFlowEditor() {
     // Find the highest layer to place the new element on top
     const highestLayer = project.elements.reduce((max, el) => Math.max(max, el.layer || 0), 0);
     
+    // Calculate center position of canvas
+    const canvasElement = document.querySelector('.relative.bg-black.shadow-2xl');
+    let centerX = 100;
+    let centerY = 100;
+    
+    if (canvasElement) {
+      const rect = canvasElement.getBoundingClientRect();
+      centerX = rect.width / 2 - 50;
+      centerY = rect.height / 2 - 50;
+    }
+    
     const newElement: CanvasElementType = {
       id: `element-${Date.now()}`,
       type: 'element',
       name: element.name,
       src: element.src,
-      x: 100,
-      y: 100,
+      x: centerX,
+      y: centerY,
       width: 100,
       height: 100,
       startTime: 0,
@@ -577,6 +599,22 @@ export default function CineFlowEditor() {
     }
   }, []);
   
+  // Handle aspect ratio change
+  const handleAspectRatioChange = useCallback((newRatio: string) => {
+    setProject(prev => {
+      const newProject = {
+        ...prev,
+        aspectRatio: newRatio,
+        updatedAt: new Date().toISOString()
+      };
+      
+      addToHistory(newProject);
+      return newProject;
+    });
+    
+    toast.info(`Aspect ratio changed to ${newRatio}`);
+  }, [addToHistory]);
+  
   // Get selected element
   const selectedElement = selectedElementId 
     ? project.elements.find(el => el.id === selectedElementId) || null
@@ -600,6 +638,8 @@ export default function CineFlowEditor() {
           isPlaying={isPlaying}
           canUndo={canUndo}
           canRedo={canRedo}
+          aspectRatio={project.aspectRatio}
+          onAspectRatioChange={handleAspectRatioChange}
           onPlayPause={togglePlayPause}
           onUndo={handleUndo}
           onRedo={handleRedo}
