@@ -207,7 +207,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
   return (
     <div
       ref={elementRef}
-      className={`absolute ${isSelected ? 'z-10' : 'z-0'} transition-opacity duration-200 animate-fade-in`}
+      className="absolute transition-all duration-200 animate-fade-in"
       style={{
         left: `${element.x}px`,
         top: `${element.y}px`,
@@ -216,7 +216,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
         transform: `rotate(${element.rotation || 0}deg)`,
         opacity: isVisible ? (element.opacity || 1) : (isSelected ? 0.5 : 0),
         pointerEvents: isVisible || isSelected ? 'auto' : 'none',
-        zIndex: element.layer || 0,
+        zIndex: isSelected ? 1000 : (element.layer || 0),
       }}
       onClick={handleSelect}
       onMouseDown={handleMoveStart}
