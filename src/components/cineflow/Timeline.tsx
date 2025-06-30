@@ -26,6 +26,7 @@ const Timeline: React.FC<TimelineProps> = ({
   onUpdateElement
 }) => {
   const timelineRef = useRef<HTMLDivElement>(null);
+  const timelineContentRef = useRef<HTMLDivElement>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   const [isDraggingElement, setIsDraggingElement] = useState<string | null>(null);
   const [dragType, setDragType] = useState<'move' | 'start' | 'end' | 'layer' | null>(null);
@@ -94,6 +95,14 @@ const Timeline: React.FC<TimelineProps> = ({
     e.stopPropagation();
     setIsDraggingPlayhead(true);
     setStartPos({ x: e.clientX, y: e.clientY });
+    
+    // Immediately update playhead position
+    if (timelineRef.current) {
+      const rect = timelineRef.current.getBoundingClientRect();
+      const position = e.clientX - rect.left;
+      const newTime = positionToTime(position);
+      onTimeUpdate(Math.max(0, Math.min(newTime, customDuration)));
+    }
   };
 
   // Handle timeline click (scrub)
@@ -110,6 +119,8 @@ const Timeline: React.FC<TimelineProps> = ({
   // Handle element drag
   const handleElementMouseDown = (e: React.MouseEvent, elementId: string, type: 'move' | 'start' | 'end') => {
     e.stopPropagation();
+    e.preventDefault();
+    
     setIsDraggingElement(elementId);
     setDragType(type);
     setStartPos({ x: e.clientX, y: e.clientY });
@@ -119,6 +130,31 @@ const Timeline: React.FC<TimelineProps> = ({
       setStartTime(element.startTime);
       setStartDuration(element.duration);
       setStartLayer(element.layer || 0);
+      
+      // Select the element when starting to drag
+      onSelectElement(elementId);
+      
+      // Add dragging class to the element
+      const timelineItem = (e.currentTarget as HTMLElement).closest('.timeline-item');
+      if (timelineItem) {
+        timelineItem.classList.add('dragging');
+      }
+    }
+    
+    // Immediately start updating position
+    if (type === 'move' && timelineRef.current) {
+      const rect = timelineRef.current.getBoundingClientRect();
+      const position = e.clientX - rect.left;
+      const element = elements.find(el => el.id === elementId);
+      
+      if (element) {
+        const elementWidth = timeToPosition(element.duration);
+        const maxPosition = timelineWidth - elementWidth;
+        const newPosition = Math.max(0, Math.min(position - elementWidth / 2, maxPosition));
+        const newTime = positionToTime(newPosition);
+        
+        onUpdateElement(elementId, { startTime: newTime });
+      }
     }
   };
 
@@ -135,6 +171,15 @@ const Timeline: React.FC<TimelineProps> = ({
     setStartPos({ x: e.clientX, y: e.clientY });
     setStartLayer(element.layer || 0);
     setDraggedElement(element);
+    
+    // Select the element when starting to drag
+    onSelectElement(elementId);
+    
+    // Add dragging class to the element
+    const timelineItem = (e.currentTarget as HTMLElement).closest('.timeline-item');
+    if (timelineItem) {
+      timelineItem.classList.add('dragging');
+    }
     
     // Add a class to the body to indicate dragging
     document.body.classList.add('dragging-layer');
@@ -201,6 +246,11 @@ const Timeline: React.FC<TimelineProps> = ({
       setDragType(null);
       setDragOverElementId(null);
       setDraggedElement(null);
+      
+      // Remove dragging class from all timeline items
+      document.querySelectorAll('.timeline-item').forEach(item => {
+        item.classList.remove('dragging');
+      });
     }
   };
 
@@ -227,13 +277,18 @@ const Timeline: React.FC<TimelineProps> = ({
         
         if (dragType === 'move') {
           // Move the entire element
-          const deltaPos = e.clientX - startPos.x;
-          const deltaTime = positionToTime(deltaPos);
+          if (!timelineRef.current) return;
           
-          let newStartTime = startTime + deltaTime;
-          newStartTime = Math.max(0, Math.min(newStartTime, customDuration - element.duration));
+          const rect = timelineRef.current.getBoundingClientRect();
+          const position = e.clientX - rect.left;
           
-          onUpdateElement(isDraggingElement, { startTime: newStartTime });
+          // Calculate new time based on mouse position
+          let newTime = positionToTime(position - timeToPosition(element.duration) / 2);
+          
+          // Ensure the element stays within the timeline bounds
+          newTime = Math.max(0, Math.min(newTime, customDuration - element.duration));
+          
+          onUpdateElement(isDraggingElement, { startTime: newTime });
         } else if (dragType === 'start') {
           // Adjust start time and duration
           const deltaPos = e.clientX - startPos.x;
@@ -333,6 +388,11 @@ const Timeline: React.FC<TimelineProps> = ({
         }
       }
       
+      // Remove dragging class from all timeline items
+      document.querySelectorAll('.timeline-item').forEach(item => {
+        item.classList.remove('dragging');
+      });
+      
       setIsDraggingPlayhead(false);
       setIsDraggingElement(null);
       setDragType(null);
@@ -363,7 +423,9 @@ const Timeline: React.FC<TimelineProps> = ({
     customDuration, 
     onTimeUpdate, 
     onUpdateElement,
-    dragOverElementId
+    dragOverElementId,
+    timelineWidth,
+    zoom
   ]);
 
   // Zoom in/out
@@ -529,7 +591,11 @@ const Timeline: React.FC<TimelineProps> = ({
             </div>
             
             {/* Element timelines */}
-            <div className="p-2 space-y-2" style={{ width: `${timelineWidth * zoom}px`, minWidth: '100%' }}>
+            <div 
+              className="p-2 space-y-2" 
+              style={{ width: `${timelineWidth * zoom}px`, minWidth: '100%' }}
+              ref={timelineContentRef}
+            >
               {sortedElements.map(element => {
                 // Check if element should be visible based on timeline
                 const isVisible = currentTime >= element.startTime && 
@@ -539,7 +605,7 @@ const Timeline: React.FC<TimelineProps> = ({
                   <div 
                     key={element.id}
                     data-id={element.id}
-                    className={`timeline-item h-10 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer ${
+                    className={`timeline-item h-10 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-grab active:cursor-grabbing ${
                       selectedElementId === element.id ? 'border border-amber-500' : 
                       dragOverElementId === element.id ? 'border border-blue-500' : ''
                     }`}
@@ -613,11 +679,11 @@ const Timeline: React.FC<TimelineProps> = ({
                       
                       {/* Resize handles */}
                       <div 
-                        className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize"
+                        className="absolute left-0 top-0 bottom-0 w-4 cursor-ew-resize"
                         onMouseDown={(e) => handleElementMouseDown(e, element.id, 'start')}
                       ></div>
                       <div 
-                        className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize"
+                        className="absolute right-0 top-0 bottom-0 w-4 cursor-ew-resize"
                         onMouseDown={(e) => handleElementMouseDown(e, element.id, 'end')}
                       ></div>
                     </div>
