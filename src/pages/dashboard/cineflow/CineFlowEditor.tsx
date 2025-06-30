@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Download, Save, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Download, Save, Zap, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import ErrorBoundary from '../../../components/dashboard/ErrorBoundary';
 import { toast } from '../../../contexts/ToastContext';
 import { CanvasElementType, CineFlowProject, Template } from '../../../types/cineflow';
