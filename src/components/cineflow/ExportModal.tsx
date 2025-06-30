@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Download, Save, Cloud, FileJson, Video, Image, Check, Info, Zap, Loader } from 'lucide-react';
+import { X, Download, Save, Cloud, FileJson, Video, Image as ImageIcon, Check, Info, Zap, Loader } from 'lucide-react';
 import { toast } from '../../contexts/ToastContext';
 import { CineFlowProject, CanvasElementType } from '../../types/cineflow';
 import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
@@ -102,7 +102,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
     switch (element.type) {
       case 'image':
         if (element.src) {
-          const img = new Image();
+          const img = new window.Image();
           img.src = element.src;
           await new Promise((resolve) => {
             img.onload = resolve;
@@ -178,7 +178,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
         
       case 'element':
         if (element.src) {
-          const img = new Image();
+          const img = new window.Image();
           img.src = element.src;
           await new Promise((resolve) => {
             img.onload = resolve;
@@ -647,7 +647,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
                         : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
                     }`}
                   >
-                    <Image className="w-6 h-6 mb-2" />
+                    <ImageIcon className="w-6 h-6 mb-2" />
                     <span className="text-sm font-semibold">Images</span>
                     <span className="text-xs text-white/50 mt-1">PNG Sequence</span>
                   </button>
