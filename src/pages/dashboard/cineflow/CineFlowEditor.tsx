@@ -12,6 +12,7 @@ import Canvas from '../../../components/cineflow/Canvas';
 import Timeline from '../../../components/cineflow/Timeline';
 import PropertiesPanel from '../../../components/cineflow/PropertiesPanel';
 import TopToolbar from '../../../components/cineflow/TopToolbar';
+import ExportModal from '../../../components/cineflow/ExportModal';
 
 // Initialize FFmpeg
 let ffmpeg: any = null;
@@ -72,6 +73,7 @@ export default function CineFlowEditor() {
   const [showRightPanel, setShowRightPanel] = useState(true);
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
+  const [showExportModal, setShowExportModal] = useState(false);
   
   // History for undo/redo
   const [history, setHistory] = useState<CineFlowProject[]>([]);
@@ -572,31 +574,8 @@ export default function CineFlowEditor() {
   }, [id, project]);
   
   // Export project
-  const handleExport = useCallback(async () => {
-    setIsExporting(true);
-    toast.info('Preparing to export video...', {
-      duration: 3000
-    });
-    
-    try {
-      // In a real implementation, we would use FFmpeg.wasm to render the video
-      // For now, we'll just simulate the export process
-      
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      toast.success('Video exported successfully', {
-        subtext: 'Your video has been saved to your downloads folder.',
-        duration: 5000
-      });
-    } catch (error) {
-      console.error('Error exporting video:', error);
-      toast.error('Error exporting video', {
-        subtext: 'Please try again later.',
-        duration: 5000
-      });
-    } finally {
-      setIsExporting(false);
-    }
+  const handleExport = useCallback(() => {
+    setShowExportModal(true);
   }, []);
   
   // Handle aspect ratio change
@@ -741,15 +720,13 @@ export default function CineFlowEditor() {
           </div>
         </div>
         
-        {/* Export loading overlay */}
-        {isExporting && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-            <div className="bg-gray-900 rounded-xl p-6 max-w-md text-center">
-              <div className="animate-spin w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-              <h3 className="text-xl font-bold text-white mb-2">Exporting Video</h3>
-              <p className="text-white/70">Please wait while we process your video...</p>
-            </div>
-          </div>
+        {/* Export Modal */}
+        {showExportModal && (
+          <ExportModal
+            isOpen={showExportModal}
+            onClose={() => setShowExportModal(false)}
+            project={project}
+          />
         )}
       </div>
     </ErrorBoundary>
