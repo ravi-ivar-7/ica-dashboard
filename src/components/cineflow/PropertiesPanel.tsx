@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { CanvasElementType } from '../../types/cineflow';
 import { Trash2, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, ChevronLeft, ChevronRight } from 'lucide-react';
 
