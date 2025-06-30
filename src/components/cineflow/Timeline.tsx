@@ -610,38 +610,12 @@ const Timeline: React.FC<TimelineProps> = ({
                       dragOverElementId === element.id ? 'border border-blue-500' : ''
                     }`}
                     onClick={() => onSelectElement(element.id)}
-                    onMouseDown={(e) => {
-                      // Check if the click is on the vertical area (for layer dragging)
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const isVerticalArea = e.clientX < rect.left + 30; // First 30px is for vertical dragging
-                      
-                      if (isVerticalArea) {
-                        handleLayerDragStart(e, element.id);
-                      }
-                    }}
-                    onMouseOver={(e) => handleDragOver(e, element.id)}
-                    onMouseOut={handleDragLeave}
-                    onMouseUp={(e) => handleDrop(e, element.id)}
-                    draggable="true"
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('text/plain', element.id);
-                      handleLayerDragStart(e, element.id);
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      handleDragOver(e, element.id);
-                    }}
-                    onDragLeave={(e) => {
-                      e.preventDefault();
-                      handleDragLeave(e);
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      handleDrop(e, element.id);
-                    }}
                   >
                     {/* Layer indicator */}
-                    <div className="absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center bg-gray-800/50 rounded-l-lg cursor-ns-resize">
+                    <div 
+                      className="absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center bg-gray-800/50 rounded-l-lg cursor-ns-resize"
+                      onMouseDown={(e) => handleLayerDragStart(e, element.id)}
+                    >
                       <span className="text-white/60 text-[10px] font-mono">{element.layer || 0}</span>
                     </div>
                     
@@ -663,15 +637,7 @@ const Timeline: React.FC<TimelineProps> = ({
                         left: `${timeToPosition(element.startTime)}px`,
                         width: `${timeToPosition(element.duration)}px`,
                       }}
-                      onMouseDown={(e) => {
-                        // Only handle horizontal dragging if not in the layer indicator area
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const isLayerArea = e.clientX < rect.left + 30;
-                        
-                        if (!isLayerArea) {
-                          handleElementMouseDown(e, element.id, 'move');
-                        }
-                      }}
+                      onMouseDown={(e) => handleElementMouseDown(e, element.id, 'move')}
                     >
                       <span className="text-white text-xs truncate max-w-full ml-6">
                         {element.name || element.type}
