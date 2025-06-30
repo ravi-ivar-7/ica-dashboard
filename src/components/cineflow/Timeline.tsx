@@ -35,7 +35,6 @@ const Timeline: React.FC<TimelineProps> = ({
   const [startDuration, setStartDuration] = useState(0);
   const [startLayer, setStartLayer] = useState(0);
   const [timelineWidth, setTimelineWidth] = useState(0);
-  const [zoom, setZoom] = useState(0.5);
   const [customDuration, setCustomDuration] = useState(duration);
   const [showLayerPanel, setShowLayerPanel] = useState(true);
   const [dragOverElementId, setDragOverElementId] = useState<string | null>(null);
@@ -74,12 +73,12 @@ const Timeline: React.FC<TimelineProps> = ({
 
   // Convert time to position
   const timeToPosition = (time: number) => {
-    return (time / customDuration) * timelineWidth * zoom;
+    return (time / customDuration) * timelineWidth;
   };
 
   // Convert position to time
   const positionToTime = (position: number) => {
-    return (position / (timelineWidth * zoom)) * customDuration;
+    return (position / timelineWidth) * customDuration;
   };
 
   // Format time as MM:SS.ms
@@ -424,18 +423,8 @@ const Timeline: React.FC<TimelineProps> = ({
     onTimeUpdate, 
     onUpdateElement,
     dragOverElementId,
-    timelineWidth,
-    zoom
+    timelineWidth
   ]);
-
-  // Zoom in/out
-  const handleZoomIn = () => {
-    setZoom(prev => Math.min(prev + 0.5, 5));
-  };
-
-  const handleZoomOut = () => {
-    setZoom(prev => Math.max(prev - 0.5, 0.5));
-  };
 
   // Update custom duration
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -480,21 +469,7 @@ const Timeline: React.FC<TimelineProps> = ({
           </button>
           
           <div className="flex items-center space-x-1">
-            <button
-              onClick={handleZoomOut}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
-              disabled={zoom <= 0.5}
-            >
-              <Minus className="w-3 h-3" />
-            </button>
-            <span className="text-white/80 text-xs">{Math.round(zoom * 100)}%</span>
-            <button
-              onClick={handleZoomIn}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
-              disabled={zoom >= 5}
-            >
-              <Plus className="w-3 h-3" />
-            </button>
+            <span className="text-white/80 text-xs">{Math.round(50)}%</span>
           </div>
           
           <div className="flex items-center space-x-1">
@@ -593,7 +568,7 @@ const Timeline: React.FC<TimelineProps> = ({
             {/* Element timelines */}
             <div 
               className="p-2 space-y-2" 
-              style={{ width: `${timelineWidth * zoom}px`, minWidth: '100%' }}
+              style={{ width: `${timelineWidth}px`, minWidth: '100%' }}
               ref={timelineContentRef}
             >
               {sortedElements.map(element => {
