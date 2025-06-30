@@ -17,6 +17,8 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   isCollapsed = false,
   onToggleCollapse
 }) => {
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
   if (!selectedElement) {
     if (isCollapsed) {
       return (
