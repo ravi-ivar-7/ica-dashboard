@@ -550,6 +550,24 @@ export default function CineFlowEditor() {
     setSelectedElementId(newElement.id);
   }, [project.elements, addToHistory]);
   
+  // Toggle left panel
+  const toggleLeftPanel = useCallback(() => {
+    if (isMobile) {
+      setShowLeftPanel(prev => !prev);
+    } else {
+      setLeftPanelCollapsed(prev => !prev);
+    }
+  }, [isMobile]);
+  
+  // Toggle right panel
+  const toggleRightPanel = useCallback(() => {
+    if (isMobile) {
+      setShowRightPanel(prev => !prev);
+    } else {
+      setRightPanelCollapsed(prev => !prev);
+    }
+  }, [isMobile]);
+  
   // Handle applying template
   const handleApplyTemplate = useCallback((template: Template) => {
     // Ask for confirmation if project already has elements
