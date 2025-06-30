@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { CanvasElementType } from '../../types/cineflow';
-import { Play, Pause, ChevronLeft, ChevronRight, Clock, Plus, Minus, Layers } from 'lucide-react';
+import { Play, Pause, ChevronLeft, ChevronRight, Clock, Layers } from 'lucide-react';
 
 interface TimelineProps {
   elements: CanvasElementType[];
@@ -294,7 +294,7 @@ const Timeline: React.FC<TimelineProps> = ({
           const deltaTime = positionToTime(deltaPos);
           
           let newStartTime = startTime + deltaTime;
-          newStartTime = Math.max(0, Math.min(newStartTime, startTime + startDuration - 0.1));
+          newStartTime = Math.max(0, Math.min(newStartTime, startTime + startDuration - 5));
           
           const newDuration = startDuration - (newStartTime - startTime);
           
@@ -429,7 +429,7 @@ const Timeline: React.FC<TimelineProps> = ({
   // Update custom duration
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newDuration = Number(e.target.value);
-    if (newDuration >= 5) {
+    if (newDuration >= 1) {
       setCustomDuration(newDuration);
     }
   };
@@ -472,7 +472,7 @@ const Timeline: React.FC<TimelineProps> = ({
             <span className="text-white/80 text-xs">Duration:</span>
             <input
               type="number"
-              min="5"
+              min="1"
               value={customDuration}
               onChange={handleDurationChange}
               className="w-16 bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-white text-xs focus:outline-none focus:border-amber-400"
