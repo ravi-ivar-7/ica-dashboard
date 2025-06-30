@@ -103,18 +103,26 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
       case 'image':
         if (element.src) {
           const img = new window.Image();
+          // Set crossOrigin before setting src to prevent canvas taint
+          img.crossOrigin = 'anonymous';
           img.src = element.src;
           await new Promise((resolve) => {
             img.onload = resolve;
             img.onerror = resolve; // Continue even if image fails to load
           });
-          ctx.drawImage(img, element.x, element.y, element.width, element.height);
+          try {
+            ctx.drawImage(img, element.x, element.y, element.width, element.height);
+          } catch (error) {
+            console.warn('Failed to draw image, canvas may be tainted:', error);
+          }
         }
         break;
         
       case 'video':
         if (element.src) {
           const video = document.createElement('video');
+          // Set crossOrigin before setting src to prevent canvas taint
+          video.crossOrigin = 'anonymous';
           video.src = element.src;
           video.muted = true;
           
@@ -134,7 +142,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
           try {
             ctx.drawImage(video, element.x, element.y, element.width, element.height);
           } catch (error) {
-            console.error('Error drawing video frame:', error);
+            console.warn('Failed to draw video frame, canvas may be tainted:', error);
           }
         }
         break;
@@ -179,12 +187,18 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
       case 'element':
         if (element.src) {
           const img = new window.Image();
+          // Set crossOrigin before setting src to prevent canvas taint
+          img.crossOrigin = 'anonymous';
           img.src = element.src;
           await new Promise((resolve) => {
             img.onload = resolve;
             img.onerror = resolve;
           });
-          ctx.drawImage(img, element.x, element.y, element.width, element.height);
+          try {
+            ctx.drawImage(img, element.x, element.y, element.width, element.height);
+          } catch (error) {
+            console.warn('Failed to draw element, canvas may be tainted:', error);
+          }
         }
         break;
     }
