@@ -70,8 +70,6 @@ export default function CineFlowEditor() {
   const [isMobile, setIsMobile] = useState(false);
   const [showLeftPanel, setShowLeftPanel] = useState(true);
   const [showRightPanel, setShowRightPanel] = useState(true);
-  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
-  const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
   
   // History for undo/redo
   const [history, setHistory] = useState<CineFlowProject[]>([]);
@@ -79,40 +77,12 @@ export default function CineFlowEditor() {
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   
+  // Audio elements and refs
+  const [audioElements, setAudioElements] = useState<Record<string, HTMLAudioElement>>({});
+  
   // Refs
   const playIntervalRef = useRef<number | null>(null);
   const projectRef = useRef(project);
-  
-  // Initialize audio context
-  useEffect(() => {
-    // Create AudioContext on first user interaction to avoid autoplay restrictions
-    const initAudioContext = () => {
-      if (!audioContext) {
-        const context = new (window.AudioContext || (window as any).webkitAudioContext)();
-        setAudioContext(context);
-      }
-    };
-
-    // Add event listeners for user interaction
-    const handleUserInteraction = () => {
-      initAudioContext();
-      document.removeEventListener('click', handleUserInteraction);
-      document.removeEventListener('keydown', handleUserInteraction);
-    };
-
-    document.addEventListener('click', handleUserInteraction);
-    document.addEventListener('keydown', handleUserInteraction);
-
-    return () => {
-      document.removeEventListener('click', handleUserInteraction);
-      document.removeEventListener('keydown', handleUserInteraction);
-      
-      // Clean up audio context
-      if (audioContext) {
-        audioContext.close();
-      }
-    };
-  }, [audioContext]);
   
   // Check if mobile
   useEffect(() => {
@@ -196,23 +166,90 @@ export default function CineFlowEditor() {
     setCanRedo(historyIndex < history.length - 1);
   }, [history, historyIndex]);
   
+  // Handle audio elements creation and management
+  useEffect(() => {
+    // Create or update audio elements for all audio type elements
+    const audioElementsMap: Record<string, HTMLAudioElement> = {};
+    
+    project.elements.forEach(element => {
+      if (element.type === 'audio' && element.src) {
+        // Reuse existing audio element if available
+        if (audioElements[element.id]) {
+          audioElementsMap[element.id] = audioElements[element.id];
+        } else {
+          // Create new audio element
+          const audio = new Audio(element.src);
+          audio.preload = 'auto';
+          audio.volume = 1.0;
+          audioElementsMap[element.id] = audio;
+        }
+      }
+    });
+    
+    // Clean up audio elements that are no longer in the project
+    Object.keys(audioElements).forEach(id => {
+      if (!project.elements.some(el => el.id === id)) {
+        audioElements[id].pause();
+        audioElements[id].src = '';
+      }
+    });
+    
+    setAudioElements(audioElementsMap);
+    
+    // Cleanup function
+    return () => {
+      Object.values(audioElementsMap).forEach(audio => {
+        audio.pause();
+        audio.src = '';
+      });
+    };
+  }, [project.elements]);
+  
+  // Control audio playback based on timeline
+  useEffect(() => {
+    // Handle audio playback for all audio elements
+    project.elements.forEach(element => {
+      if (element.type === 'audio' && audioElements[element.id]) {
+        const audio = audioElements[element.id];
+        
+        // Check if this audio should be playing at current time
+        const shouldPlay = isPlaying && 
+                          currentTime >= element.startTime && 
+                          currentTime < (element.startTime + element.duration);
+        
+        if (shouldPlay) {
+          // Set the current time relative to the element's start time
+          const relativeTime = currentTime - element.startTime;
+          
+          // Only set currentTime if it's significantly different to avoid stuttering
+          if (Math.abs(audio.currentTime - relativeTime) > 0.2) {
+            audio.currentTime = relativeTime;
+          }
+          
+          // Play the audio if it's not already playing
+          if (audio.paused) {
+            audio.play().catch(err => {
+              // Handle autoplay restrictions gracefully
+              console.warn('Audio autoplay prevented:', err);
+            });
+          }
+        } else {
+          // Pause the audio if it's playing
+          if (!audio.paused) {
+            audio.pause();
+          }
+        }
+      }
+    });
+  }, [isPlaying, currentTime, project.elements, audioElements]);
+  
   // Handle playback
   useEffect(() => {
     if (isPlaying) {
       playIntervalRef.current = window.setInterval(() => {
         setCurrentTime(prevTime => {
           const newTime = prevTime + 0.1;
-          
-          // Find the maximum end time of any element
-          const maxEndTime = project.elements.reduce((max, el) => {
-            const endTime = el.startTime + el.duration;
-            return endTime > max ? endTime : max;
-          }, 0);
-          
-          // Use the greater of project duration or max element end time
-          const effectiveDuration = Math.max(project.duration, maxEndTime);
-          
-          if (newTime >= effectiveDuration) {
+          if (newTime >= project.duration) {
             setIsPlaying(false);
             return 0;
           }
@@ -229,7 +266,7 @@ export default function CineFlowEditor() {
         clearInterval(playIntervalRef.current);
       }
     };
-  }, [isPlaying, project.duration, project.elements]);
+  }, [isPlaying, project.duration]);
   
   // Autosave project
   useEffect(() => {
@@ -370,12 +407,12 @@ export default function CineFlowEditor() {
           type: 'audio',
           name: asset.name,
           src: asset.src,
-          x: position.x,
-          y: position.y,
-          width: 300,
-          height: 100,
+          x: 0, // Audio elements don't have visual position
+          y: 0, // Audio elements don't have visual position
+          width: 0, // Audio elements don't have visual dimensions
+          height: 0, // Audio elements don't have visual dimensions
           startTime: 0,
-          duration: 15,
+          duration: asset.duration ? parseFloat(asset.duration.split(':')[0]) * 60 + parseFloat(asset.duration.split(':')[1]) : 15,
           layer: highestLayer + 1
         };
         break;
@@ -433,7 +470,10 @@ export default function CineFlowEditor() {
       return newProject;
     });
     
-    setSelectedElementId(newElement.id);
+    // Only select visual elements
+    if (newElement.type !== 'audio') {
+      setSelectedElementId(newElement.id);
+    }
     
     // Add fade-in animation
     toast.success(`Added ${asset.name || asset.type}`, {
