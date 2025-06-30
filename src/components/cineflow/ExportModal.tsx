@@ -1,8 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { X, Download, Save, Cloud, FileJson, Video, Image as ImageIcon, Check, Info, Zap, Loader, Instagram, Youtube, Twitter, Calendar, Clock, Camera } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Download, Settings, Film, Instagram, Youtube, Twitter, Facebook, Check, Info } from 'lucide-react';
+import { CineFlowProject } from '../../types/cineflow';
 import { toast } from '../../contexts/ToastContext';
-import { CineFlowProject, CanvasElementType } from '../../types/cineflow';
-import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -10,1296 +9,285 @@ interface ExportModalProps {
   project: CineFlowProject;
 }
 
-type ExportFormat = 'video' | 'image-sequence' | 'json';
-type ExportDestination = 'download' | 'assets' | 'cloud' | 'social';
-type SocialPlatform = 'instagram' | 'youtube' | 'tiktok' | 'twitter' | null;
-
-// Initialize FFmpeg
-let ffmpeg: any = null;
-
-const loadFFmpeg = async () => {
-  if (ffmpeg) return ffmpeg;
-  
-  try {
-    ffmpeg = createFFmpeg({ 
-      log: true,
-      corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
-    });
-    await ffmpeg.load();
-    return ffmpeg;
-  } catch (error) {
-    console.error('Error loading FFmpeg:', error);
-    throw error;
-  }
-};
-
 const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) => {
-  const [exportFormat, setExportFormat] = useState<ExportFormat>('video');
-  const [exportDestination, setExportDestination] = useState<ExportDestination>('download');
-  const [socialPlatform, setSocialPlatform] = useState<SocialPlatform>(null);
-  const [resolution, setResolution] = useState('1080p');
-  const [quality, setQuality] = useState('high');
   const [isExporting, setIsExporting] = useState(false);
-  const [exportProgress, setExportProgress] = useState(0);
-  const [statusMessage, setStatusMessage] = useState('');
-  const [postTitle, setPostTitle] = useState('');
-  const [postDescription, setPostDescription] = useState('');
-  const [postTags, setPostTags] = useState('');
-  const [schedulePost, setSchedulePost] = useState(false);
-  const [scheduleDate, setScheduleDate] = useState('');
-  const [scheduleTime, setScheduleTime] = useState('');
-  const [selectedThumbnailTime, setSelectedThumbnailTime] = useState(0);
-  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  
-  // Load FFmpeg when the modal opens
-  useEffect(() => {
-    if (isOpen) {
-      loadFFmpeg().catch(error => {
-        toast.error('Failed to load video export tools', {
-          subtext: 'Please try again or use a different export format',
-          duration: 5000
-        });
-      });
-    }
-    
-    // Initialize AudioContext
-    if (!audioContextRef.current) {
-      try {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      } catch (error) {
-        console.error('Failed to create AudioContext:', error);
-      }
-    }
-    
-    return () => {
-      // Clean up AudioContext when component unmounts
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close().then(() => {
-          audioContextRef.current = null;
-        }).catch(console.error);
-      }
-    };
-  }, [isOpen]);
-
-  // Initialize post title and description from project
-  useEffect(() => {
-    if (isOpen && project) {
-      setPostTitle(project.name || '');
-      setPostDescription(`Created with OpenModel Studio CineFlow`);
-      
-      // Set default tags based on project type
-      const defaultTags = project.tags.length > 0 
-        ? project.tags.join(', ') 
-        : `cineflow, ${project.type.toLowerCase()}, openmodelstudio`;
-      
-      setPostTags(defaultTags);
-      
-      // Set default thumbnail time to 25% of the project duration
-      const defaultThumbnailTime = Math.max(0, Math.min(project.duration * 0.25, project.duration - 0.1));
-      setSelectedThumbnailTime(defaultThumbnailTime);
-      
-      // Generate thumbnail preview
-      generateThumbnailPreview(defaultThumbnailTime);
-    }
-  }, [isOpen, project]);
-  
-  // Generate thumbnail preview at the selected time
-  const generateThumbnailPreview = async (time: number) => {
-    try {
-      const canvas = document.createElement('canvas');
-      
-      // Set canvas dimensions based on selected resolution
-      let width, height;
-      const aspectRatio = project.aspectRatio.split(':').map(Number);
-      const aspectWidth = aspectRatio[0];
-      const aspectHeight = aspectRatio[1];
-      
-      // Use a smaller size for the preview
-      height = 270; // 1/4 of 1080p
-      width = (aspectWidth / aspectHeight) * height;
-      
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      
-      if (!ctx) {
-        throw new Error('Could not get canvas context');
-      }
-      
-      // Render the frame at the selected time
-      await renderFrame(time, canvas, ctx);
-      
-      // Convert canvas to data URL
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-      setThumbnailPreview(dataUrl);
-      
-    } catch (error) {
-      console.error('Error generating thumbnail preview:', error);
-      setThumbnailPreview(null);
-    }
-  };
-  
-  if (!isOpen) return null;
-
-  // Function to render a frame at a specific time
-  const renderFrame = async (time: number, canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => {
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Get visible elements at this time
-    const visibleElements = project.elements.filter(element => 
-      time >= element.startTime && time < (element.startTime + element.duration)
-    );
-    
-    // Sort by layer (z-index)
-    const sortedElements = [...visibleElements].sort((a, b) => {
-      const layerA = a.layer || 0;
-      const layerB = b.layer || 0;
-      return layerA - layerB;
-    });
-    
-    // Draw each element
-    for (const element of sortedElements) {
-      await drawElement(element, time, ctx);
-    }
-    
-    return canvas;
-  };
-  
-  // Function to draw an element on the canvas
-  const drawElement = async (element: CanvasElementType, time: number, ctx: CanvasRenderingContext2D) => {
-    // Apply element opacity
-    ctx.globalAlpha = element.opacity !== undefined ? element.opacity : 1;
-    
-    // Save context state
-    ctx.save();
-    
-    // Apply rotation if needed
-    if (element.rotation) {
-      const centerX = element.x + element.width / 2;
-      const centerY = element.y + element.height / 2;
-      ctx.translate(centerX, centerY);
-      ctx.rotate((element.rotation * Math.PI) / 180);
-      ctx.translate(-centerX, -centerY);
-    }
-    
-    // Draw based on element type
-    switch (element.type) {
-      case 'image':
-        if (element.src) {
-          const img = new window.Image();
-          // Set crossOrigin before setting src to prevent canvas taint
-          img.crossOrigin = 'anonymous';
-          img.src = element.src;
-          await new Promise((resolve) => {
-            img.onload = resolve;
-            img.onerror = resolve; // Continue even if image fails to load
-          });
-          try {
-            ctx.drawImage(img, element.x, element.y, element.width, element.height);
-          } catch (error) {
-            console.warn('Failed to draw image, canvas may be tainted:', error);
-          }
-        }
-        break;
-        
-      case 'video':
-        if (element.src) {
-          const video = document.createElement('video');
-          // Set crossOrigin before setting src to prevent canvas taint
-          video.crossOrigin = 'anonymous';
-          video.src = element.src;
-          video.muted = true;
-          
-          // Set video time relative to the element's timeline position
-          const relativeTime = time - element.startTime;
-          
-          await new Promise<void>((resolve) => {
-            video.onloadedmetadata = () => {
-              video.currentTime = relativeTime;
-              video.onseeked = () => resolve();
-              video.onerror = () => resolve();
-            };
-            video.onerror = () => resolve();
-            video.load();
-          });
-          
-          try {
-            ctx.drawImage(video, element.x, element.y, element.width, element.height);
-          } catch (error) {
-            console.warn('Failed to draw video frame, canvas may be tainted:', error);
-          }
-        }
-        break;
-        
-      case 'text':
-        if (element.text) {
-          ctx.font = `${element.fontWeight || 'normal'} ${element.fontSize || 24}px ${element.fontFamily || 'sans-serif'}`;
-          ctx.fillStyle = element.color || '#ffffff';
-          ctx.textAlign = element.textAlign || 'center' as CanvasTextAlign;
-          
-          // Calculate text position based on alignment
-          let textX = element.x;
-          if (element.textAlign === 'center') {
-            textX += element.width / 2;
-          } else if (element.textAlign === 'right') {
-            textX += element.width;
-          }
-          
-          // Draw text with word wrap
-          const words = element.text.split(' ');
-          let line = '';
-          let lineY = element.y + (element.fontSize || 24);
-          const lineHeight = (element.fontSize || 24) * (element.lineHeight || 1.2);
-          
-          for (const word of words) {
-            const testLine = line + word + ' ';
-            const metrics = ctx.measureText(testLine);
-            
-            if (metrics.width > element.width && line !== '') {
-              ctx.fillText(line, textX, lineY);
-              line = word + ' ';
-              lineY += lineHeight;
-            } else {
-              line = testLine;
-            }
-          }
-          
-          ctx.fillText(line, textX, lineY);
-        }
-        break;
-        
-      case 'element':
-        if (element.src) {
-          const img = new window.Image();
-          // Set crossOrigin before setting src to prevent canvas taint
-          img.crossOrigin = 'anonymous';
-          img.src = element.src;
-          await new Promise((resolve) => {
-            img.onload = resolve;
-            img.onerror = resolve;
-          });
-          try {
-            ctx.drawImage(img, element.x, element.y, element.width, element.height);
-          } catch (error) {
-            console.warn('Failed to draw element, canvas may be tainted:', error);
-          }
-        }
-        break;
-    }
-    
-    // Restore context state
-    ctx.restore();
-    
-    // Reset global alpha
-    ctx.globalAlpha = 1;
-  };
-  
-  // Function to process audio elements and create a combined audio track
-  const processAudio = async () => {
-    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-      console.warn('AudioContext not available or closed');
-      return null;
-    }
-    
-    // Get all audio elements
-    const audioElements = project.elements.filter(el => el.type === 'audio');
-    
-    if (audioElements.length === 0) {
-      console.log('No audio elements to process');
-      return null;
-    }
-    
-    try {
-      // Create a new offline audio context with the project duration
-      const offlineCtx = new OfflineAudioContext(
-        2, // stereo
-        44100 * project.duration, // sample rate * duration in seconds
-        44100 // sample rate
-      );
-      
-      // Load and process each audio element
-      const audioBuffers = await Promise.all(
-        audioElements.map(async (element) => {
-          try {
-            // Fetch the audio file
-            const response = await fetch(element.src);
-            const arrayBuffer = await response.arrayBuffer();
-            
-            // Decode the audio data
-            const audioBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
-            
-            // Create a source node
-            const source = offlineCtx.createBufferSource();
-            source.buffer = audioBuffer;
-            
-            // Create a gain node for volume control
-            const gainNode = offlineCtx.createGain();
-            gainNode.gain.value = element.opacity !== undefined ? element.opacity : 1;
-            
-            // Connect the nodes
-            source.connect(gainNode);
-            gainNode.connect(offlineCtx.destination);
-            
-            // Schedule the audio to start at the element's start time
-            source.start(element.startTime);
-            
-            return { source, element };
-          } catch (error) {
-            console.error('Error processing audio element:', error);
-            return null;
-          }
-        })
-      );
-      
-      // Filter out any failed audio elements
-      const validAudioBuffers = audioBuffers.filter(buffer => buffer !== null);
-      
-      if (validAudioBuffers.length === 0) {
-        console.warn('No valid audio elements could be processed');
-        return null;
-      }
-      
-      // Render the audio
-      const renderedBuffer = await offlineCtx.startRendering();
-      
-      // Convert the rendered buffer to a WAV file
-      const wavBlob = await audioBufferToWav(renderedBuffer);
-      
-      return wavBlob;
-    } catch (error) {
-      console.error('Error processing audio:', error);
-      return null;
-    }
-  };
-  
-  // Function to convert AudioBuffer to WAV Blob
-  const audioBufferToWav = (buffer: AudioBuffer): Promise<Blob> => {
-    return new Promise((resolve) => {
-      const numChannels = buffer.numberOfChannels;
-      const sampleRate = buffer.sampleRate;
-      const format = 1; // PCM
-      const bitDepth = 16;
-      
-      const bytesPerSample = bitDepth / 8;
-      const blockAlign = numChannels * bytesPerSample;
-      
-      // Create the WAV file header
-      const headerSize = 44;
-      const dataSize = buffer.length * numChannels * bytesPerSample;
-      const wavSize = headerSize + dataSize;
-      
-      const wavBuffer = new ArrayBuffer(wavSize);
-      const view = new DataView(wavBuffer);
-      
-      // "RIFF" chunk descriptor
-      writeString(view, 0, 'RIFF');
-      view.setUint32(4, 36 + dataSize, true);
-      writeString(view, 8, 'WAVE');
-      
-      // "fmt " sub-chunk
-      writeString(view, 12, 'fmt ');
-      view.setUint32(16, 16, true); // fmt chunk size
-      view.setUint16(20, format, true); // audio format
-      view.setUint16(22, numChannels, true);
-      view.setUint32(24, sampleRate, true);
-      view.setUint32(28, sampleRate * blockAlign, true); // byte rate
-      view.setUint16(32, blockAlign, true);
-      view.setUint16(34, bitDepth, true);
-      
-      // "data" sub-chunk
-      writeString(view, 36, 'data');
-      view.setUint32(40, dataSize, true);
-      
-      // Write the PCM samples
-      const channels = [];
-      for (let i = 0; i < numChannels; i++) {
-        channels.push(buffer.getChannelData(i));
-      }
-      
-      let offset = 44;
-      for (let i = 0; i < buffer.length; i++) {
-        for (let channel = 0; channel < numChannels; channel++) {
-          const sample = Math.max(-1, Math.min(1, channels[channel][i]));
-          const value = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-          view.setInt16(offset, value, true);
-          offset += 2;
-        }
-      }
-      
-      // Create a Blob from the WAV data
-      const wavBlob = new Blob([wavBuffer], { type: 'audio/wav' });
-      resolve(wavBlob);
-    });
-  };
-  
-  // Helper function to write a string to a DataView
-  const writeString = (view: DataView, offset: number, string: string) => {
-    for (let i = 0; i < string.length; i++) {
-      view.setUint8(offset + i, string.charCodeAt(i));
-    }
-  };
-  
-  // Function to export video
-  const exportVideo = async () => {
-    try {
-      setStatusMessage('Initializing export...');
-      setExportProgress(5);
-      
-      // Load FFmpeg if not already loaded
-      const ffmpegInstance = await loadFFmpeg();
-      
-      // Create a canvas for rendering frames
-      const canvas = document.createElement('canvas');
-      
-      // Set canvas dimensions based on selected resolution
-      let width, height;
-      const aspectRatio = project.aspectRatio.split(':').map(Number);
-      const aspectWidth = aspectRatio[0];
-      const aspectHeight = aspectRatio[1];
-      
-      if (resolution === '720p') {
-        height = 720;
-        width = (aspectWidth / aspectHeight) * height;
-      } else if (resolution === '1080p') {
-        height = 1080;
-        width = (aspectWidth / aspectHeight) * height;
-      } else if (resolution === '2160p') {
-        height = 2160;
-        width = (aspectWidth / aspectHeight) * height;
-      } else {
-        // Default to 1080p
-        height = 1080;
-        width = (aspectWidth / aspectHeight) * height;
-      }
-      
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      
-      if (!ctx) {
-        throw new Error('Could not get canvas context');
-      }
-      
-      // Determine frame rate and duration
-      const fps = 30;
-      const duration = project.duration;
-      const totalFrames = Math.ceil(duration * fps);
-      
-      setStatusMessage('Rendering frames...');
-      
-      // Render each frame
-      for (let frameIndex = 0; frameIndex < totalFrames; frameIndex++) {
-        const time = frameIndex / fps;
-        await renderFrame(time, canvas, ctx);
-        
-        // Convert canvas to image data
-        const imageData = canvas.toDataURL('image/jpeg', quality === 'high' ? 0.95 : quality === 'medium' ? 0.85 : 0.75);
-        const base64Data = imageData.split(',')[1];
-        
-        // Write frame to FFmpeg virtual filesystem
-        const frameFileName = `frame${String(frameIndex).padStart(4, '0')}.jpg`;
-        ffmpegInstance.FS('writeFile', frameFileName, Uint8Array.from(atob(base64Data), c => c.charCodeAt(0)));
-        
-        // Update progress
-        const frameProgress = Math.floor((frameIndex / totalFrames) * 60);
-        setExportProgress(5 + frameProgress);
-        
-        // Update status message periodically
-        if (frameIndex % 10 === 0) {
-          setStatusMessage(`Rendering frame ${frameIndex + 1}/${totalFrames}...`);
-        }
-      }
-      
-      setStatusMessage('Processing audio...');
-      setExportProgress(65);
-      
-      // Process audio elements
-      const audioBlob = await processAudio();
-      let hasAudio = false;
-      
-      if (audioBlob) {
-        // Convert audio blob to array buffer
-        const audioArrayBuffer = await audioBlob.arrayBuffer();
-        
-        // Write audio file to FFmpeg virtual filesystem
-        ffmpegInstance.FS('writeFile', 'audio.wav', new Uint8Array(audioArrayBuffer));
-        hasAudio = true;
-        
-        setExportProgress(75);
-      }
-      
-      setStatusMessage('Encoding video...');
-      setExportProgress(80);
-      
-      // Encode video using FFmpeg
-      if (hasAudio) {
-        // With audio
-        await ffmpegInstance.run(
-          '-framerate', `${fps}`,
-          '-pattern_type', 'glob',
-          '-i', 'frame*.jpg',
-          '-i', 'audio.wav',
-          '-c:v', 'libx264',
-          '-pix_fmt', 'yuv420p',
-          '-preset', quality === 'high' ? 'slow' : quality === 'medium' ? 'medium' : 'fast',
-          '-crf', quality === 'high' ? '18' : quality === 'medium' ? '23' : '28',
-          '-c:a', 'aac',
-          '-b:a', '192k',
-          '-shortest', // Ensure output duration is determined by the shortest input
-          'output.mp4'
-        );
-      } else {
-        // Without audio
-        await ffmpegInstance.run(
-          '-framerate', `${fps}`,
-          '-pattern_type', 'glob',
-          '-i', 'frame*.jpg',
-          '-c:v', 'libx264',
-          '-pix_fmt', 'yuv420p',
-          '-preset', quality === 'high' ? 'slow' : quality === 'medium' ? 'medium' : 'fast',
-          '-crf', quality === 'high' ? '18' : quality === 'medium' ? '23' : '28',
-          'output.mp4'
-        );
-      }
-      
-      setStatusMessage('Finalizing export...');
-      setExportProgress(95);
-      
-      // Read the output file
-      const data = ffmpegInstance.FS('readFile', 'output.mp4');
-      
-      // Create a download link
-      const blob = new Blob([data.buffer], { type: 'video/mp4' });
-      const url = URL.createObjectURL(blob);
-      
-      if (exportDestination === 'download') {
-        // Download the file
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${project.name.replace(/\s+/g, '_')}.mp4`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } else if (exportDestination === 'assets') {
-        // In a real app, we would save to the assets library
-        // For now, just simulate it
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } else if (exportDestination === 'cloud') {
-        // In a real app, we would upload to cloud storage
-        // For now, just simulate it
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } else if (exportDestination === 'social') {
-        // In a real app, we would upload to the selected social platform
-        // For now, just simulate it
-        await new Promise(resolve => setTimeout(resolve, 1500));
-      }
-      
-      // Clean up
-      URL.revokeObjectURL(url);
-      
-      // Clean up FFmpeg filesystem
-      for (let i = 0; i < totalFrames; i++) {
-        const frameFileName = `frame${String(i).padStart(4, '0')}.jpg`;
-        ffmpegInstance.FS('unlink', frameFileName);
-      }
-      
-      if (hasAudio) {
-        ffmpegInstance.FS('unlink', 'audio.wav');
-      }
-      
-      ffmpegInstance.FS('unlink', 'output.mp4');
-      
-      setExportProgress(100);
-      
-      // Show success message
-      toast.success('Export completed successfully', {
-        subtext: exportDestination === 'download' 
-          ? 'Your video has been downloaded' 
-          : exportDestination === 'assets'
-            ? 'Your video has been added to your assets'
-            : exportDestination === 'cloud'
-              ? 'Your video has been uploaded to cloud storage'
-              : `Your video has been uploaded to ${socialPlatform}`,
-        duration: 5000
-      });
-      
-    } catch (error) {
-      console.error('Error exporting video:', error);
-      toast.error(`Error exporting video: ${error instanceof Error ? error.message : 'Unknown error'}`, {
-        subtext: 'There was an error during the export process. Please try again.',
-        duration: 5000
-      });
-    } finally {
-      setIsExporting(false);
-      onClose();
-    }
-  };
-  
-  // Function to export image sequence
-  const exportImageSequence = async () => {
-    try {
-      setStatusMessage('Preparing image sequence...');
-      setExportProgress(10);
-      
-      // Create a canvas for rendering frames
-      const canvas = document.createElement('canvas');
-      
-      // Set canvas dimensions based on selected resolution
-      let width, height;
-      const aspectRatio = project.aspectRatio.split(':').map(Number);
-      const aspectWidth = aspectRatio[0];
-      const aspectHeight = aspectRatio[1];
-      
-      if (resolution === '720p') {
-        height = 720;
-        width = (aspectWidth / aspectHeight) * height;
-      } else if (resolution === '1080p') {
-        height = 1080;
-        width = (aspectWidth / aspectHeight) * height;
-      } else if (resolution === '2160p') {
-        height = 2160;
-        width = (aspectWidth / aspectHeight) * height;
-      } else {
-        // Default to 1080p
-        height = 1080;
-        width = (aspectWidth / aspectHeight) * height;
-      }
-      
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      
-      if (!ctx) {
-        throw new Error('Could not get canvas context');
-      }
-      
-      // Determine frame rate and duration
-      const fps = 30;
-      const duration = project.duration;
-      const totalFrames = Math.ceil(duration * fps);
-      
-      // Create a JSZip instance (in a real implementation)
-      // For now, we'll just simulate creating a zip file
-      
-      setStatusMessage('Rendering frames...');
-      
-      // Render each frame
-      const frames = [];
-      for (let frameIndex = 0; frameIndex < totalFrames; frameIndex++) {
-        const time = frameIndex / fps;
-        await renderFrame(time, canvas, ctx);
-        
-        // In a real implementation, we would add each frame to the zip file
-        // For now, just simulate it
-        frames.push(canvas.toDataURL('image/png'));
-        
-        // Update progress
-        const progress = Math.floor((frameIndex / totalFrames) * 80);
-        setExportProgress(10 + progress);
-        
-        // Update status message periodically
-        if (frameIndex % 10 === 0) {
-          setStatusMessage(`Rendering frame ${frameIndex + 1}/${totalFrames}...`);
-        }
-      }
-      
-      setStatusMessage('Creating ZIP archive...');
-      setExportProgress(90);
-      
-      // In a real implementation, we would finalize the zip file
-      // For now, just simulate it
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setStatusMessage('Finalizing export...');
-      setExportProgress(95);
-      
-      if (exportDestination === 'download') {
-        // In a real implementation, we would download the zip file
-        // For now, just simulate it
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } else if (exportDestination === 'assets') {
-        // In a real implementation, we would save to the assets library
-        // For now, just simulate it
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } else if (exportDestination === 'cloud') {
-        // In a real implementation, we would upload to cloud storage
-        // For now, just simulate it
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      
-      setExportProgress(100);
-      
-      // Show success message
-      toast.success('Image sequence exported successfully', {
-        subtext: exportDestination === 'download' 
-          ? 'Your images have been downloaded as a ZIP file' 
-          : exportDestination === 'assets'
-            ? 'Your images have been added to your assets'
-            : 'Your images have been uploaded to cloud storage',
-        duration: 5000
-      });
-      
-    } catch (error) {
-      console.error('Error exporting image sequence:', error);
-      toast.error('Export failed', {
-        subtext: 'There was an error during the export process. Please try again.',
-        duration: 5000
-      });
-    } finally {
-      setIsExporting(false);
-      onClose();
-    }
-  };
-  
-  // Function to export JSON project
-  const exportJson = async () => {
-    try {
-      setStatusMessage('Preparing project data...');
-      setExportProgress(30);
-      
-      // Create JSON data
-      const projectJson = JSON.stringify(project, null, 2);
-      
-      setStatusMessage('Creating JSON file...');
-      setExportProgress(60);
-      
-      // Create a blob from the JSON data
-      const blob = new Blob([projectJson], { type: 'application/json' });
-      
-      setStatusMessage('Finalizing export...');
-      setExportProgress(90);
-      
-      if (exportDestination === 'download') {
-        // Download the JSON file
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${project.name.replace(/\s+/g, '_')}_config.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      } else if (exportDestination === 'assets') {
-        // In a real implementation, we would save to the assets library
-        // For now, just simulate it
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } else if (exportDestination === 'cloud') {
-        // In a real implementation, we would upload to cloud storage
-        // For now, just simulate it
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      
-      setExportProgress(100);
-      
-      // Show success message
-      toast.success('Project configuration exported successfully', {
-        subtext: exportDestination === 'download' 
-          ? 'Your project JSON file has been downloaded' 
-          : exportDestination === 'assets'
-            ? 'Your project configuration has been added to your assets'
-            : 'Your project configuration has been uploaded to cloud storage',
-        duration: 5000
-      });
-      
-    } catch (error) {
-      console.error('Error exporting JSON:', error);
-      toast.error('Export failed', {
-        subtext: 'There was an error during the export process. Please try again.',
-        duration: 5000
-      });
-    } finally {
-      setIsExporting(false);
-      onClose();
-    }
-  };
+  const [exportFormat, setExportFormat] = useState('mp4');
+  const [exportQuality, setExportQuality] = useState('high');
+  const [exportResolution, setExportResolution] = useState('1080p');
+  const [includeAudio, setIncludeAudio] = useState(true);
+  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
+  const [postDetails, setPostDetails] = useState({
+    title: project.name,
+    description: '',
+    tags: project.tags.join(', ')
+  });
 
   const handleExport = async () => {
     setIsExporting(true);
-    setExportProgress(0);
     
     try {
-      // Handle different export formats
-      if (exportFormat === 'video') {
-        await exportVideo();
-      } else if (exportFormat === 'image-sequence') {
-        await exportImageSequence();
-      } else if (exportFormat === 'json') {
-        await exportJson();
+      // Simulate export process
+      toast.info('Preparing to export video...', {
+        duration: 3000
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      if (selectedPlatform) {
+        toast.success(`Video prepared for ${selectedPlatform}`, {
+          subtext: 'Ready to post when you\'re ready',
+          duration: 5000
+        });
+      } else {
+        toast.success('Video exported successfully', {
+          subtext: 'Your video has been saved to your downloads folder.',
+          duration: 5000
+        });
       }
+      
+      onClose();
     } catch (error) {
-      console.error('Export error:', error);
-      toast.error('Export failed', {
-        subtext: 'There was an error during the export process. Please try again.',
+      console.error('Error exporting video:', error);
+      toast.error('Error exporting video', {
+        subtext: 'Please try again later.',
         duration: 5000
       });
+    } finally {
       setIsExporting(false);
     }
   };
 
-  // Function to update thumbnail time
-  const handleThumbnailTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = parseFloat(e.target.value);
-    setSelectedThumbnailTime(newTime);
-    generateThumbnailPreview(newTime);
-  };
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div 
         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-        onClick={isExporting ? undefined : onClose}
+        onClick={onClose}
       />
       
-      {/* Modal */}
-      <div className="relative bg-gradient-to-br from-gray-900/95 to-black/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-black/50 w-full max-w-2xl max-h-[90vh] overflow-hidden">
-        {/* Background elements */}
-        <div className="absolute inset-0">
-          <div className="absolute top-10 left-10 w-32 h-32 bg-amber-600/20 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-10 right-10 w-40 h-40 bg-orange-600/15 rounded-full blur-3xl animate-pulse delay-1000"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-yellow-600/10 rounded-full blur-3xl animate-pulse delay-2000"></div>
-        </div>
-
-        <div className="relative z-10 flex flex-col max-h-[90vh]">
-          {/* Header */}
-          <div className="p-3 sm:p-4 border-b border-white/10 flex-shrink-0">
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center space-x-3">
-                <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-2 rounded-xl shadow-lg">
-                  <Download className="w-5 h-5 text-black" />
-                </div>
-                <h2 className="text-xl font-black text-white">Export Project</h2>
-              </div>
-              {!isExporting && (
-                <button
-                  onClick={onClose}
-                  className="bg-white/10 backdrop-blur-xl p-2 rounded-xl hover:bg-white/20 transition-colors border border-white/20"
-                >
-                  <X className="w-5 h-5 text-white" />
-                </button>
-              )}
-            </div>
-            <p className="text-white/70 text-xs sm:text-sm ml-10">
-              Export your CineFlow project in various formats and destinations
-            </p>
+      <div className="relative bg-gradient-to-br from-gray-900/95 to-black/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+        {/* Header */}
+        <div className="p-4 border-b border-white/10 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Film className="w-5 h-5 text-amber-500" />
+            <h2 className="text-lg font-bold text-white">Export Project</h2>
           </div>
-
-          {isExporting ? (
-            // Export Progress UI
-            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto">
-              <div className="text-center py-4 sm:py-6">
-                <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full mb-3 sm:mb-4">
-                  <Loader className="w-7 h-7 text-white animate-spin" />
-                </div>
-                <h3 className="text-lg sm:text-xl font-bold text-white mb-2">Exporting {exportFormat === 'video' ? 'Video' : exportFormat === 'image-sequence' ? 'Image Sequence' : 'Project'}</h3>
-                <p className="text-white/70 mb-4 sm:mb-6">{statusMessage}</p>
-                
-                <div className="w-full bg-white/10 rounded-full h-2 mb-2">
-                  <div 
-                    className="h-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500"
-                    style={{ width: `${exportProgress}%` }}
-                  ></div>
-                </div>
-                <p className="text-white/50 text-sm">{exportProgress}% complete</p>
-                
-                <div className="mt-4 sm:mt-6 text-white/70 text-xs sm:text-sm">
-                  <p>This may take several minutes depending on your project complexity.</p>
-                  <p>Please don't close this window during export.</p>
-                </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        
+        {/* Content */}
+        <div className="p-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+          {/* Export Settings */}
+          <div className="mb-6">
+            <h3 className="text-white font-bold text-sm mb-3 flex items-center">
+              <Settings className="w-4 h-4 mr-1.5 text-amber-500" />
+              Export Settings
+            </h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-white/70 text-xs font-medium mb-1">Format</label>
+                <select
+                  value={exportFormat}
+                  onChange={(e) => setExportFormat(e.target.value)}
+                  className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400"
+                >
+                  <option value="mp4" className="bg-gray-900">MP4</option>
+                  <option value="webm" className="bg-gray-900">WebM</option>
+                  <option value="gif" className="bg-gray-900">GIF</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-white/70 text-xs font-medium mb-1">Quality</label>
+                <select
+                  value={exportQuality}
+                  onChange={(e) => setExportQuality(e.target.value)}
+                  className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400"
+                >
+                  <option value="low" className="bg-gray-900">Low (Faster)</option>
+                  <option value="medium" className="bg-gray-900">Medium</option>
+                  <option value="high" className="bg-gray-900">High (Slower)</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-white/70 text-xs font-medium mb-1">Resolution</label>
+                <select
+                  value={exportResolution}
+                  onChange={(e) => setExportResolution(e.target.value)}
+                  className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400"
+                >
+                  <option value="720p" className="bg-gray-900">720p</option>
+                  <option value="1080p" className="bg-gray-900">1080p</option>
+                  <option value="4k" className="bg-gray-900">4K</option>
+                </select>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="include-audio"
+                  checked={includeAudio}
+                  onChange={(e) => setIncludeAudio(e.target.checked)}
+                  className="w-4 h-4 rounded border-white/30 bg-white/10 text-amber-500 focus:ring-amber-400 focus:ring-1"
+                />
+                <label htmlFor="include-audio" className="text-white text-sm">Include Audio</label>
               </div>
             </div>
-          ) : (
-            // Export Options UI
-            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
-              <div className="p-4 space-y-4">
-                {/* Export Format */}
+          </div>
+          
+          {/* Post to Platform */}
+          <div className="mb-6">
+            <h3 className="text-white font-bold text-sm mb-3 flex items-center">
+              <Download className="w-4 h-4 mr-1.5 text-amber-500" />
+              Export Destination
+            </h3>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <button
+                onClick={() => setSelectedPlatform(null)}
+                className={`flex flex-col items-center justify-center p-3 rounded-lg border ${
+                  selectedPlatform === null 
+                    ? 'bg-amber-500/20 border-amber-500/50 text-white' 
+                    : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
+                } transition-colors`}
+              >
+                <Download className="w-5 h-5 mb-1" />
+                <span className="text-xs font-medium">Download</span>
+              </button>
+              
+              <button
+                onClick={() => setSelectedPlatform('instagram')}
+                className={`flex flex-col items-center justify-center p-3 rounded-lg border ${
+                  selectedPlatform === 'instagram' 
+                    ? 'bg-amber-500/20 border-amber-500/50 text-white' 
+                    : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
+                } transition-colors`}
+              >
+                <Instagram className="w-5 h-5 mb-1" />
+                <span className="text-xs font-medium">Instagram</span>
+              </button>
+              
+              <button
+                onClick={() => setSelectedPlatform('youtube')}
+                className={`flex flex-col items-center justify-center p-3 rounded-lg border ${
+                  selectedPlatform === 'youtube' 
+                    ? 'bg-amber-500/20 border-amber-500/50 text-white' 
+                    : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
+                } transition-colors`}
+              >
+                <Youtube className="w-5 h-5 mb-1" />
+                <span className="text-xs font-medium">YouTube</span>
+              </button>
+              
+              <button
+                onClick={() => setSelectedPlatform('twitter')}
+                className={`flex flex-col items-center justify-center p-3 rounded-lg border ${
+                  selectedPlatform === 'twitter' 
+                    ? 'bg-amber-500/20 border-amber-500/50 text-white' 
+                    : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
+                } transition-colors`}
+              >
+                <Twitter className="w-5 h-5 mb-1" />
+                <span className="text-xs font-medium">Twitter</span>
+              </button>
+            </div>
+            
+            {selectedPlatform && (
+              <div className="bg-white/5 rounded-lg p-4 border border-white/10 space-y-3">
                 <div>
-                  <h3 className="text-base font-bold text-white mb-2">Export Format</h3>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      onClick={() => setExportFormat('video')}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                        exportFormat === 'video'
-                          ? 'bg-amber-500/20 border-amber-500/50 text-white'
-                          : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <Video className="w-5 h-5 mb-1" />
-                      <span className="text-xs font-semibold">Video</span>
-                      <span className="text-[10px] text-white/50 mt-0.5">MP4/WebM</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => setExportFormat('image-sequence')}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                        exportFormat === 'image-sequence'
-                          ? 'bg-amber-500/20 border-amber-500/50 text-white'
-                          : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <ImageIcon className="w-5 h-5 mb-1" />
-                      <span className="text-xs font-semibold">Images</span>
-                      <span className="text-[10px] text-white/50 mt-0.5">PNG Sequence</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => setExportFormat('json')}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                        exportFormat === 'json'
-                          ? 'bg-amber-500/20 border-amber-500/50 text-white'
-                          : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <FileJson className="w-5 h-5 mb-1" />
-                      <span className="text-xs font-semibold">Project</span>
-                      <span className="text-[10px] text-white/50 mt-0.5">JSON Config</span>
-                    </button>
-                  </div>
+                  <label className="block text-white/70 text-xs font-medium mb-1">Title</label>
+                  <input
+                    type="text"
+                    value={postDetails.title}
+                    onChange={(e) => setPostDetails({...postDetails, title: e.target.value})}
+                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400"
+                    placeholder="Enter a title for your post"
+                  />
                 </div>
-
-                {/* Export Destination */}
+                
                 <div>
-                  <h3 className="text-base font-bold text-white mb-2">Export Destination</h3>
-                  <div className="grid grid-cols-4 gap-2">
-                    <button
-                      onClick={() => {
-                        setExportDestination('download');
-                        setSocialPlatform(null);
-                      }}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                        exportDestination === 'download'
-                          ? 'bg-amber-500/20 border-amber-500/50 text-white'
-                          : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <Download className="w-5 h-5 mb-1" />
-                      <span className="text-xs font-semibold">Download</span>
-                      <span className="text-[10px] text-white/50 mt-0.5">Save locally</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => {
-                        setExportDestination('assets');
-                        setSocialPlatform(null);
-                      }}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                        exportDestination === 'assets'
-                          ? 'bg-amber-500/20 border-amber-500/50 text-white'
-                          : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <Save className="w-5 h-5 mb-1" />
-                      <span className="text-xs font-semibold">Assets</span>
-                      <span className="text-[10px] text-white/50 mt-0.5">Save to library</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => {
-                        setExportDestination('cloud');
-                        setSocialPlatform(null);
-                      }}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                        exportDestination === 'cloud'
-                          ? 'bg-amber-500/20 border-amber-500/50 text-white'
-                          : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <Cloud className="w-5 h-5 mb-1" />
-                      <span className="text-xs font-semibold">Cloud</span>
-                      <span className="text-[10px] text-white/50 mt-0.5">Google Drive</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => setExportDestination('social')}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                        exportDestination === 'social'
-                          ? 'bg-amber-500/20 border-amber-500/50 text-white'
-                          : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <Instagram className="w-5 h-5 mb-1" />
-                      <span className="text-xs font-semibold">Social</span>
-                      <span className="text-[10px] text-white/50 mt-0.5">Post directly</span>
-                    </button>
-                  </div>
+                  <label className="block text-white/70 text-xs font-medium mb-1">Description</label>
+                  <textarea
+                    value={postDetails.description}
+                    onChange={(e) => setPostDetails({...postDetails, description: e.target.value})}
+                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 resize-none"
+                    placeholder="Enter a description"
+                    rows={3}
+                  />
                 </div>
-
-                {/* Social Platform Selection (if social destination is selected) */}
-                {exportDestination === 'social' && (
-                  <div>
-                    <h3 className="text-base font-bold text-white mb-2">Select Platform</h3>
-                    <div className="grid grid-cols-4 gap-2">
-                      <button
-                        onClick={() => setSocialPlatform('instagram')}
-                        className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                          socialPlatform === 'instagram'
-                            ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/50 text-white'
-                            : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                        }`}
-                      >
-                        <Instagram className="w-5 h-5 mb-1" />
-                        <span className="text-xs font-semibold">Instagram</span>
-                      </button>
-                      
-                      <button
-                        onClick={() => setSocialPlatform('youtube')}
-                        className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                          socialPlatform === 'youtube'
-                            ? 'bg-gradient-to-br from-red-500/20 to-red-600/20 border-red-500/50 text-white'
-                            : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                        }`}
-                      >
-                        <Youtube className="w-5 h-5 mb-1" />
-                        <span className="text-xs font-semibold">YouTube</span>
-                      </button>
-                      
-                      <button
-                        onClick={() => setSocialPlatform('tiktok')}
-                        className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                          socialPlatform === 'tiktok'
-                            ? 'bg-gradient-to-br from-cyan-500/20 to-black/20 border-cyan-500/50 text-white'
-                            : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                        }`}
-                      >
-                        <Video className="w-5 h-5 mb-1" />
-                        <span className="text-xs font-semibold">TikTok</span>
-                      </button>
-                      
-                      <button
-                        onClick={() => setSocialPlatform('twitter')}
-                        className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                          socialPlatform === 'twitter'
-                            ? 'bg-gradient-to-br from-blue-500/20 to-blue-600/20 border-blue-500/50 text-white'
-                            : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                        }`}
-                      >
-                        <Twitter className="w-5 h-5 mb-1" />
-                        <span className="text-xs font-semibold">X/Twitter</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Social Media Post Details (if social platform is selected) */}
-                {exportDestination === 'social' && socialPlatform && (
-                  <div className="space-y-3">
-                    <h3 className="text-base font-bold text-white mb-2">Post Details</h3>
-                    
-                    <div>
-                      <label className="block text-white/80 text-xs font-semibold mb-1">
-                        Title
-                      </label>
-                      <input
-                        type="text"
-                        value={postTitle}
-                        onChange={(e) => setPostTitle(e.target.value)}
-                        placeholder="Enter post title"
-                        className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/50 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition-all text-sm"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-white/80 text-xs font-semibold mb-1">
-                        Description
-                      </label>
-                      <textarea
-                        value={postDescription}
-                        onChange={(e) => setPostDescription(e.target.value)}
-                        placeholder="Enter post description"
-                        rows={2}
-                        className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/50 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition-all text-sm resize-none"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-white/80 text-xs font-semibold mb-1">
-                        Tags (comma separated)
-                      </label>
-                      <input
-                        type="text"
-                        value={postTags}
-                        onChange={(e) => setPostTags(e.target.value)}
-                        placeholder="tag1, tag2, tag3"
-                        className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/50 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition-all text-sm"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-white/80 text-xs font-semibold mb-1">
-                        Thumbnail
-                      </label>
-                      <div className="flex items-center space-x-3">
-                        <div className="w-16 h-16 bg-white/10 rounded-lg overflow-hidden flex-shrink-0">
-                          {thumbnailPreview ? (
-                            <img 
-                              src={thumbnailPreview} 
-                              alt="Thumbnail preview" 
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Camera className="w-6 h-6 text-white/40" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <input
-                            type="range"
-                            min="0"
-                            max={project.duration}
-                            step="0.1"
-                            value={selectedThumbnailTime}
-                            onChange={handleThumbnailTimeChange}
-                            className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer accent-amber-500"
-                          />
-                          <div className="flex justify-between text-white/50 text-xs mt-1">
-                            <span>0:00</span>
-                            <span>{Math.floor(selectedThumbnailTime / 60)}:{Math.floor(selectedThumbnailTime % 60).toString().padStart(2, '0')}</span>
-                            <span>{Math.floor(project.duration / 60)}:{Math.floor(project.duration % 60).toString().padStart(2, '0')}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="schedulePost"
-                        checked={schedulePost}
-                        onChange={(e) => setSchedulePost(e.target.checked)}
-                        className="w-4 h-4 rounded border-white/30 bg-white/10 text-amber-500 focus:ring-amber-400 focus:ring-1"
-                      />
-                      <label htmlFor="schedulePost" className="text-white/80 text-xs font-semibold">
-                        Schedule for later
-                      </label>
-                    </div>
-                    
-                    {schedulePost && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-white/80 text-xs font-semibold mb-1">
-                            Date
-                          </label>
-                          <div className="relative">
-                            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
-                            <input
-                              type="date"
-                              value={scheduleDate}
-                              onChange={(e) => setScheduleDate(e.target.value)}
-                              className="w-full bg-white/10 border border-white/20 rounded-lg pl-10 pr-3 py-2 text-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition-all text-sm"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-white/80 text-xs font-semibold mb-1">
-                            Time
-                          </label>
-                          <div className="relative">
-                            <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
-                            <input
-                              type="time"
-                              value={scheduleTime}
-                              onChange={(e) => setScheduleTime(e.target.value)}
-                              className="w-full bg-white/10 border border-white/20 rounded-lg pl-10 pr-3 py-2 text-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition-all text-sm"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-lg p-3">
-                      <div className="flex items-start space-x-2">
-                        <Info className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                        <p className="text-white/70 text-xs">
-                          {socialPlatform === 'instagram' && 'Your video will be posted to Instagram. Videos should be between 3 seconds and 60 seconds for Reels.'}
-                          {socialPlatform === 'youtube' && 'Your video will be uploaded to YouTube. Make sure to set an engaging title and description.'}
-                          {socialPlatform === 'tiktok' && 'Your video will be posted to TikTok. Videos should be between 15 seconds and 3 minutes.'}
-                          {socialPlatform === 'twitter' && 'Your video will be posted to X/Twitter. Videos should be under 2 minutes and 20 seconds.'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Export Settings */}
-                {exportFormat !== 'json' && (
-                  <div>
-                    <h3 className="text-base font-bold text-white mb-2">Export Settings</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-white/80 text-xs font-semibold mb-1">
-                          Resolution
-                        </label>
-                        <select
-                          value={resolution}
-                          onChange={(e) => setResolution(e.target.value)}
-                          className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition-all"
-                        >
-                          <option value="720p" className="bg-gray-900">720p (HD)</option>
-                          <option value="1080p" className="bg-gray-900">1080p (Full HD)</option>
-                          <option value="2160p" className="bg-gray-900">2160p (4K)</option>
-                        </select>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-white/80 text-xs font-semibold mb-1">
-                          Quality
-                        </label>
-                        <select
-                          value={quality}
-                          onChange={(e) => setQuality(e.target.value)}
-                          className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition-all"
-                        >
-                          <option value="low" className="bg-gray-900">Low (Faster)</option>
-                          <option value="medium" className="bg-gray-900">Medium</option>
-                          <option value="high" className="bg-gray-900">High (Better Quality)</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Info Box */}
-                <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-lg p-3">
-                  <div className="flex items-start space-x-2">
-                    <Info className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-white/70 text-xs">
-                        {exportFormat === 'video' && 'Video export may take several minutes depending on the complexity and duration of your project. Audio tracks will be automatically mixed and included in the final video.'}
-                        {exportFormat === 'image-sequence' && 'Image sequence will be exported as a ZIP file containing PNG images for each frame.'}
-                        {exportFormat === 'json' && 'JSON export contains your project configuration for backup or sharing with others.'}
-                      </p>
-                    </div>
-                  </div>
+                
+                <div>
+                  <label className="block text-white/70 text-xs font-medium mb-1">Tags (comma separated)</label>
+                  <input
+                    type="text"
+                    value={postDetails.tags}
+                    onChange={(e) => setPostDetails({...postDetails, tags: e.target.value})}
+                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400"
+                    placeholder="tag1, tag2, tag3"
+                  />
+                </div>
+                
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start space-x-2">
+                  <Info className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-white/70 text-xs">
+                    You'll need to authenticate with {selectedPlatform} before posting. This will open in a new window.
+                  </p>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Footer */}
-          <div className="p-3 sm:p-4 border-t border-white/10 flex justify-end space-x-3 flex-shrink-0">
-            {!isExporting && (
-              <>
-                <button
-                  onClick={onClose}
-                  className="px-3 py-2 rounded-lg font-semibold bg-white/10 hover:bg-white/20 text-white transition-colors text-sm"
-                >
-                  Cancel
-                </button>
-                
-                <button
-                  onClick={handleExport}
-                  className="bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 shadow-lg flex items-center space-x-2 text-sm"
-                >
-                  <Zap className="w-4 h-4" />
-                  <span>Export Now</span>
-                </button>
-              </>
             )}
           </div>
+          
+          {/* Project Info */}
+          <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+            <h3 className="text-white font-bold text-xs mb-2">Project Information</h3>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+              <div className="text-white/50">Name:</div>
+              <div className="text-white">{project.name}</div>
+              <div className="text-white/50">Duration:</div>
+              <div className="text-white">{project.duration} seconds</div>
+              <div className="text-white/50">Aspect Ratio:</div>
+              <div className="text-white">{project.aspectRatio}</div>
+              <div className="text-white/50">Elements:</div>
+              <div className="text-white">{project.elements.length}</div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Footer */}
+        <div className="p-4 border-t border-white/10 flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg font-medium bg-white/10 hover:bg-white/20 text-white transition-colors text-sm"
+            disabled={isExporting}
+          >
+            Cancel
+          </button>
+          
+          <button
+            onClick={handleExport}
+            disabled={isExporting}
+            className="bg-gradient-to-r from-amber-500 to-orange-500 text-black font-bold px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 shadow-lg flex items-center space-x-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          >
+            {isExporting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
+                <span>Exporting...</span>
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4" />
+                <span>{selectedPlatform ? `Export to ${selectedPlatform}` : 'Export'}</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

@@ -58,7 +58,8 @@ export default function CineFlowEditor() {
     elements: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    tags: []
+    tags: [],
+    description: ''
   });
   
   // Editor state
@@ -86,14 +87,19 @@ export default function CineFlowEditor() {
   // Refs
   const playIntervalRef = useRef<number | null>(null);
   const projectRef = useRef(project);
+  const canvasTimelineContainerRef = useRef<HTMLDivElement>(null);
   
   // Initialize audio context
   useEffect(() => {
     // Create AudioContext on first user interaction to avoid autoplay restrictions
     const initAudioContext = () => {
       if (!audioContext) {
-        const context = new (window.AudioContext || (window as any).webkitAudioContext)();
-        setAudioContext(context);
+        try {
+          const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+          setAudioContext(context);
+        } catch (error) {
+          console.error('Failed to create AudioContext:', error);
+        }
       }
     };
 
@@ -112,11 +118,22 @@ export default function CineFlowEditor() {
       document.removeEventListener('keydown', handleUserInteraction);
       
       // Clean up audio context
-      if (audioContext) {
-        audioContext.close();
+      if (audioContext && audioContext.state !== 'closed') {
+        try {
+          audioContext.close();
+        } catch (error) {
+          console.error('Error closing AudioContext:', error);
+        }
       }
+      
+      // Clean up audio elements
+      audioElements.forEach(audio => {
+        audio.pause();
+        audio.src = '';
+      });
+      setAudioElements(new Map());
     };
-  }, [audioContext]);
+  }, [audioContext, audioElements]);
   
   // Check if mobile
   useEffect(() => {
@@ -168,6 +185,11 @@ export default function CineFlowEditor() {
           }));
           
           parsedProject.elements = elementsWithLayers;
+          
+          // Ensure project has description and tags
+          if (!parsedProject.description) parsedProject.description = '';
+          if (!parsedProject.tags) parsedProject.tags = [];
+          
           setProject(parsedProject);
           
           // Initialize history
@@ -189,7 +211,7 @@ export default function CineFlowEditor() {
     };
     
     loadProject();
-  }, [id]);
+  }, [id, project]);
   
   // Update project ref when project changes
   useEffect(() => {
@@ -666,7 +688,7 @@ export default function CineFlowEditor() {
           {/* Left panel */}
           <div 
             style={{ 
-              width: showLeftPanel ? `${leftPanelWidth}px` : '0px',
+              width: showLeftPanel ? (leftPanelCollapsed ? '40px' : `${leftPanelWidth}px`) : '0px',
               transition: 'width 0.3s ease-in-out'
             }} 
             className="flex-shrink-0 overflow-hidden"
@@ -683,8 +705,8 @@ export default function CineFlowEditor() {
             )}
           </div>
           
-          {/* Center canvas */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Center canvas and timeline */}
+          <div className="flex-1 flex flex-col overflow-hidden" ref={canvasTimelineContainerRef}>
             {/* Canvas area */}
             <div className="flex-1 overflow-hidden bg-gray-800">
               <Canvas
@@ -719,7 +741,7 @@ export default function CineFlowEditor() {
           {/* Right panel */}
           <div 
             style={{ 
-              width: showRightPanel ? `${rightPanelWidth}px` : '0px',
+              width: showRightPanel ? (rightPanelCollapsed ? '40px' : `${rightPanelWidth}px`) : '0px',
               transition: 'width 0.3s ease-in-out'
             }} 
             className="flex-shrink-0 overflow-hidden"
