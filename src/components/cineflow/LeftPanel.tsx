@@ -23,7 +23,6 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('uploads');
-  const [isVisible, setIsVisible] = useState(true);
   const [filteredAssets, setFilteredAssets] = useState(mockAssets);
   const [filteredTemplates, setFilteredTemplates] = useState(mockTemplates);
   const [filteredElements, setFilteredElements] = useState(mockElements);
@@ -135,7 +134,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
 
   if (isCollapsed) {
     return (
-      <div className="flex flex-col h-full bg-gray-900/80 border-r border-white/10 w-10 fixed top-0 left-0 z-40">
+      <div className="flex flex-col h-full bg-gray-900/80 border-r border-white/10 w-10">
         <div className="p-1 border-b border-white/10 flex justify-center">
           <button
             onClick={onToggleCollapse}
@@ -191,7 +190,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
     );
   }
   return (
-    <div className="flex flex-col h-full bg-gray-900/80 border-r border-white/10 fixed top-0 left-0 z-40 w-64 overflow-hidden">
+    <div className="flex flex-col h-full bg-gray-900/80 border-r border-white/10">
       {/* Header with collapse button */}
       <div className="p-2 border-b border-white/10 flex justify-between items-center">
         <h3 className="text-white font-bold text-sm">Assets</h3>
