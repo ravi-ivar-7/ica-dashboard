@@ -12,6 +12,7 @@ interface TimelineProps {
   onPlayPause: () => void;
   onSelectElement: (id: string | null) => void;
   onUpdateElement: (id: string, updates: Partial<CanvasElementType>) => void;
+  showLayerPanel?: boolean;
 }
 
 const Timeline: React.FC<TimelineProps> = ({
@@ -23,7 +24,8 @@ const Timeline: React.FC<TimelineProps> = ({
   onTimeUpdate,
   onPlayPause,
   onSelectElement,
-  onUpdateElement
+  onUpdateElement,
+  showLayerPanel = true
 }) => {
   const timelineRef = useRef<HTMLDivElement>(null);
   const timelineContentRef = useRef<HTMLDivElement>(null);
@@ -35,9 +37,7 @@ const Timeline: React.FC<TimelineProps> = ({
   const [startDuration, setStartDuration] = useState(0);
   const [startLayer, setStartLayer] = useState(0);
   const [timelineWidth, setTimelineWidth] = useState(0);
-  const [zoom, setZoom] = useState(1);
   const [customDuration, setCustomDuration] = useState(duration);
-  const [showLayerPanel, setShowLayerPanel] = useState(false);
   const [dragOverElementId, setDragOverElementId] = useState<string | null>(null);
   const [draggedElement, setDraggedElement] = useState<CanvasElementType | null>(null);
   const [effectiveDuration, setEffectiveDuration] = useState(duration);
@@ -79,12 +79,12 @@ const Timeline: React.FC<TimelineProps> = ({
 
   // Convert time to position
   const timeToPosition = (time: number) => {
-    return (time / effectiveDuration) * timelineWidth * zoom;
+    return (time / effectiveDuration) * timelineWidth;
   };
 
   // Convert position to time
   const positionToTime = (position: number) => {
-    return (position / (timelineWidth * zoom)) * effectiveDuration;
+    return (position / timelineWidth) * effectiveDuration;
   };
 
   // Format time as MM:SS.ms
@@ -429,18 +429,8 @@ const Timeline: React.FC<TimelineProps> = ({
     onTimeUpdate, 
     onUpdateElement,
     dragOverElementId,
-    timelineWidth,
-    zoom
+    timelineWidth
   ]);
-
-  // Zoom in/out
-  const handleZoomIn = () => {
-    setZoom(prev => Math.min(prev + 0.5, 5));
-  };
-
-  const handleZoomOut = () => {
-    setZoom(prev => Math.max(prev - 0.5, 0.5));
-  };
 
   // Update custom duration
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -485,32 +475,6 @@ const Timeline: React.FC<TimelineProps> = ({
         </div>
         
         <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setShowLayerPanel(!showLayerPanel)}
-            className={`p-1.5 rounded-lg ${showLayerPanel ? 'bg-amber-500 text-black' : 'bg-white/10 hover:bg-white/20 text-white'} transition-colors`}
-            title="Toggle Layer Panel"
-          >
-            <Layers className="w-3.5 h-3.5" />
-          </button>
-          
-          <div className="flex items-center space-x-1">
-            <button
-              onClick={handleZoomOut}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
-              disabled={zoom <= 0.5}
-            >
-              <Minus className="w-3 h-3" />
-            </button>
-            <span className="text-white/80 text-xs">{Math.round(zoom * 100)}%</span>
-            <button
-              onClick={handleZoomIn}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
-              disabled={zoom >= 5}
-            >
-              <Plus className="w-3 h-3" />
-            </button>
-          </div>
-          
           <div className="flex items-center space-x-1">
             <span className="text-white/80 text-xs">Duration:</span>
             <input
@@ -525,55 +489,54 @@ const Timeline: React.FC<TimelineProps> = ({
         </div>
       </div>
 
-      <div className="flex flex-1">
-        {/* Layer Panel (when visible) */}
-        {showLayerPanel && (
-          <div className="w-48 border-r border-white/10 bg-gray-900/80 overflow-y-auto">
-            <div className="p-2 border-b border-white/10">
-              <h3 className="text-white font-bold text-xs flex items-center">
-                <Layers className="w-3 h-3 mr-1" />
-                Layers (Drag to Reorder)
-              </h3>
-            </div>
-            <div className="p-2 space-y-1">
-              {sortedElements.map(element => (
-                <div 
-                  key={element.id}
-                  className={`flex items-center p-1.5 rounded-lg text-xs cursor-grab active:cursor-grabbing ${
-                    selectedElementId === element.id ? 'bg-amber-500/20 border border-amber-500/50' : 
-                    dragOverElementId === element.id ? 'bg-blue-500/20 border border-blue-500/50' : 
-                    'hover:bg-white/5 border border-transparent'
-                  }`}
-                  onClick={() => onSelectElement(element.id)}
-                  onMouseDown={(e) => handleLayerDragStart(e, element.id)}
-                  onMouseOver={(e) => handleDragOver(e, element.id)}
-                  onMouseOut={handleDragLeave}
-                  onMouseUp={(e) => handleDrop(e, element.id)}
-                  draggable="true"
-                >
-                  <div className="flex items-center space-x-1 overflow-hidden">
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                      element.type === 'image' ? 'bg-blue-500' :
-                      element.type === 'video' ? 'bg-red-500' :
-                      element.type === 'audio' ? 'bg-purple-500' :
-                      element.type === 'text' ? 'bg-green-500' :
-                      'bg-amber-500'
-                    }`}></span>
-                    <span className="text-white/80 truncate">{element.name || element.type}</span>
-                  </div>
-                </div>
-              ))}
-              {elements.length === 0 && (
-                <div className="text-white/50 text-xs text-center py-2">
-                  No elements added yet
-                </div>
-              )}
-            </div>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Layer Panel (always visible) */}
+        <div className="w-48 border-r border-white/10 bg-gray-900/80 overflow-y-auto">
+          <div className="p-2 border-b border-white/10">
+            <h3 className="text-white font-bold text-xs flex items-center">
+              <Layers className="w-3 h-3 mr-1" />
+              Layers
+            </h3>
           </div>
-        )}
+          <div className="p-2 space-y-1">
+            {sortedElements.map(element => (
+              <div 
+                key={element.id}
+                data-id={element.id}
+                className={`flex items-center p-1.5 rounded-lg text-xs cursor-grab active:cursor-grabbing timeline-item ${
+                  selectedElementId === element.id ? 'bg-amber-500/20 border border-amber-500/50' : 
+                  dragOverElementId === element.id ? 'bg-blue-500/20 border border-blue-500/50' : 
+                  'hover:bg-white/5 border border-transparent'
+                }`}
+                onClick={() => onSelectElement(element.id)}
+                onMouseDown={(e) => handleLayerDragStart(e, element.id)}
+                onMouseOver={(e) => handleDragOver(e, element.id)}
+                onMouseOut={handleDragLeave}
+                onMouseUp={(e) => handleDrop(e, element.id)}
+                draggable="true"
+              >
+                <div className="flex items-center space-x-1 overflow-hidden">
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                    element.type === 'image' ? 'bg-blue-500' :
+                    element.type === 'video' ? 'bg-red-500' :
+                    element.type === 'audio' ? 'bg-purple-500' :
+                    element.type === 'text' ? 'bg-green-500' :
+                    'bg-amber-500'
+                  }`}></span>
+                  <span className="text-white/80 truncate">{element.name || element.type}</span>
+                </div>
+              </div>
+            ))}
+            {elements.length === 0 && (
+              <div className="text-white/50 text-xs text-center py-2">
+                No elements added yet
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Timeline ruler and content */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col overflow-hidden">
           {/* Timeline ruler */}
           <div className="h-6 border-b border-white/10 relative">
             <div className="absolute inset-0 flex">
@@ -607,7 +570,7 @@ const Timeline: React.FC<TimelineProps> = ({
             {/* Element timelines */}
             <div 
               className="p-2 space-y-2" 
-              style={{ width: `${timelineWidth * zoom}px`, minWidth: '100%' }}
+              style={{ width: `${timelineWidth}px`, minWidth: '100%' }}
               ref={timelineContentRef}
             >
               {sortedElements.map(element => {
@@ -625,19 +588,6 @@ const Timeline: React.FC<TimelineProps> = ({
                     }`}
                     onClick={() => onSelectElement(element.id)}
                   >
-                    {/* Layer indicator */}
-                    <div 
-                      className="absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center bg-gray-800/50 rounded-l-lg cursor-ns-resize"
-                      onMouseDown={(e) => handleLayerDragStart(e, element.id)}
-                    >
-                      <span className="text-white/60 text-[10px] font-mono">{element.layer || 0}</span>
-                    </div>
-                    
-                    {/* Element info */}
-                    <div className="absolute left-8 top-0 bottom-0 z-10 flex items-center pointer-events-none">
-                      <span className="text-white/80 text-xs truncate max-w-[100px]">{element.name || element.type}</span>
-                    </div>
-                    
                     {/* Element timeline bar */}
                     <div 
                       className={`absolute h-10 rounded-lg ${
@@ -650,6 +600,7 @@ const Timeline: React.FC<TimelineProps> = ({
                       style={{ 
                         left: `${timeToPosition(element.startTime)}px`,
                         width: `${timeToPosition(element.duration)}px`,
+                        maxWidth: '90vw'
                       }}
                       onMouseDown={(e) => handleElementMouseDown(e, element.id, 'move')}
                     >

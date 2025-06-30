@@ -80,6 +80,7 @@ export default function CineFlowEditor() {
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showLayerPanel, setShowLayerPanel] = useState(true);
   
   // History for undo/redo
   const [history, setHistory] = useState<CineFlowProject[]>([]);
@@ -772,6 +773,7 @@ export default function CineFlowEditor() {
                 onPlayPause={togglePlayPause}
                 onSelectElement={setSelectedElementId}
                 onUpdateElement={updateElement}
+                showLayerPanel={showLayerPanel}
               />
             </div>
           </div>
