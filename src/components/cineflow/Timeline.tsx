@@ -428,6 +428,15 @@ const Timeline: React.FC<TimelineProps> = ({
     zoom
   ]);
 
+  // Zoom in/out
+  const handleZoomIn = () => {
+    setZoom(prev => Math.min(prev + 0.5, 5));
+  };
+
+  const handleZoomOut = () => {
+    setZoom(prev => Math.max(prev - 0.5, 0.5));
+  };
+
   // Update custom duration
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newDuration = Number(e.target.value);
@@ -471,7 +480,21 @@ const Timeline: React.FC<TimelineProps> = ({
           </button>
           
           <div className="flex items-center space-x-1">
+            <button
+              onClick={handleZoomOut}
+              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              disabled={zoom <= 0.5}
+            >
+              <Minus className="w-3 h-3" />
+            </button>
             <span className="text-white/80 text-xs">{Math.round(zoom * 100)}%</span>
+            <button
+              onClick={handleZoomIn}
+              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              disabled={zoom >= 5}
+            >
+              <Plus className="w-3 h-3" />
+            </button>
           </div>
           
           <div className="flex items-center space-x-1">
