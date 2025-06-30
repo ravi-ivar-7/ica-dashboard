@@ -51,12 +51,51 @@ src/
 ├── types/        # TypeScript type definitions (if using TS)
 ├── styles/       # Tailwind config/overrides
 ├── ... other folder/files if required.
-
 ```
 
-* Keep each component clean, and self-contained
+* Keep each component clean and self-contained
 * Use proper import paths and naming conventions
 * Prioritize clarity, maintainability, and scalability
+
+---
+
+## 🌌 Optimization & UX Best Practices
+
+### ⏳ Performance First
+
+* Lazy-load non-critical components and images
+* Minimize bundle size with dynamic imports
+* Use Tailwind's `container`, `max-w-*`, and spacing classes smartly
+
+### 🚗 Fast Initial Load
+
+* Minimize large LCP elements above the fold
+* Use compressed video/image assets (WebP, MP4)
+
+### 📅 Smooth Interactions
+
+* Add hover, focus, and transition states using Tailwind
+
+### ✉️ Feedback Matters
+
+* Use toasts, modals, loading spinners, and status messages clearly
+* Pause auto-dismiss toasts on hover; include icons and color cues
+
+### 🚪 Modals & Navigation
+
+* Use drawer-style modals for mobile
+* Keep navigation sticky or easy to access
+
+### 🧼 Accessible UX
+
+* Use `aria-*` attributes and semantic HTML
+* Include alt text on all images/icons
+
+---
+
+## 🛈 Help Text Guidelines 
+* Use help text or tooltips beside form fields, settings, and UI inputs to ensure users clearly understand their purpose — especially where advanced controls or model-specific behaviors are involved.
+* Every non-obvious control must have either inline help text or an accessible tooltip. Prioritize user confidence over minimalism.
 
 ---
 

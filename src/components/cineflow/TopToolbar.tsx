@@ -1,5 +1,5 @@
 import React from 'react';
-import { Save, Download, Undo, Redo, Play, Pause, Zap, Settings, HelpCircle } from 'lucide-react';
+import { Save, Download, Undo, Redo, Play, Pause,  HelpCircle } from 'lucide-react';
 import { toast } from '../../contexts/ToastContext';
 
 interface TopToolbarProps {

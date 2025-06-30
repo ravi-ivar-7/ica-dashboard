@@ -34,6 +34,13 @@ const navigationItems = [
     path: '/dashboard',
     gradient: "from-purple-600 to-indigo-600"
   },
+    {
+    id: 'cineflow',
+    label: 'CineFlow',
+    icon: <Film className="w-5 h-5" />,
+    path: '/dashboard/cineflow',
+    gradient: "from-amber-600 to-orange-600"
+  },
   {
     id: 'images',
     label: 'Images',
@@ -94,13 +101,7 @@ const navigationItems = [
       }
     ]
   },
-  {
-    id: 'cineflow',
-    label: 'CineFlow',
-    icon: <Film className="w-5 h-5" />,
-    path: '/dashboard/cineflow',
-    gradient: "from-amber-600 to-orange-600"
-  },
+
   {
     id: 'audio',
     label: 'Audio',
