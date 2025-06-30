@@ -39,7 +39,6 @@ const Timeline: React.FC<TimelineProps> = ({
   const [customDuration, setCustomDuration] = useState(duration);
   const [showLayerPanel, setShowLayerPanel] = useState(false);
   const [dragOverElementId, setDragOverElementId] = useState<string | null>(null);
-  const [draggedElement, setDraggedElement] = useState<CanvasElementType | null>(null);
 
   // Update timeline width on resize
   useEffect(() => {
@@ -170,7 +169,6 @@ const Timeline: React.FC<TimelineProps> = ({
     setDragType('layer');
     setStartPos({ x: e.clientX, y: e.clientY });
     setStartLayer(element.layer || 0);
-    setDraggedElement(element);
     
     // Select the element when starting to drag
     onSelectElement(elementId);
@@ -245,7 +243,6 @@ const Timeline: React.FC<TimelineProps> = ({
       setIsDraggingElement(null);
       setDragType(null);
       setDragOverElementId(null);
-      setDraggedElement(null);
       
       // Remove dragging class from all timeline items
       document.querySelectorAll('.timeline-item').forEach(item => {
@@ -313,8 +310,7 @@ const Timeline: React.FC<TimelineProps> = ({
           
           onUpdateElement(isDraggingElement, { duration: newDuration });
         } else if (dragType === 'layer') {
-          // For layer dragging, we'll handle this in the dragOver and drop events
-          // Just update the cursor position for visual feedback
+          // For layer dragging, we need to find the closest timeline item
           const timelineItems = document.querySelectorAll('.timeline-item');
           
           // Find the closest timeline item based on cursor position
@@ -397,7 +393,6 @@ const Timeline: React.FC<TimelineProps> = ({
       setIsDraggingElement(null);
       setDragType(null);
       setDragOverElementId(null);
-      setDraggedElement(null);
       document.body.classList.remove('dragging-layer');
     };
 
