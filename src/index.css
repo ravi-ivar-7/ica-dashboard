@@ -183,3 +183,18 @@
 .animate-fade-in {
   animation: fade-in 0.3s ease-out;
 }
+
+/* Layer dragging styles */
+.dragging-layer {
+  cursor: grabbing !important;
+}
+
+.timeline-item {
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+
+.timeline-item.dragging {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 100;
+}
