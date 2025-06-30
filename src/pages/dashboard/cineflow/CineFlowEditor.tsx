@@ -53,7 +53,7 @@ export default function CineFlowEditor() {
     name: 'Untitled Project',
     type: 'Reel',
     aspectRatio: '16:9',
-    duration: 20,
+    duration: 30,
     elements: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -169,8 +169,17 @@ export default function CineFlowEditor() {
       playIntervalRef.current = window.setInterval(() => {
         setCurrentTime(prevTime => {
           const newTime = prevTime + 0.1;
-          // Stop at the project duration
-          if (newTime >= project.duration) {
+          
+          // Find the maximum end time of any element
+          const maxEndTime = project.elements.reduce((max, el) => {
+            const endTime = el.startTime + el.duration;
+            return endTime > max ? endTime : max;
+          }, 0);
+          
+          // Use the greater of project duration or max element end time
+          const effectiveDuration = Math.max(project.duration, maxEndTime);
+          
+          if (newTime >= effectiveDuration) {
             setIsPlaying(false);
             return 0;
           }
@@ -187,7 +196,7 @@ export default function CineFlowEditor() {
         clearInterval(playIntervalRef.current);
       }
     };
-  }, [isPlaying, project.duration]);
+  }, [isPlaying, project.duration, project.elements]);
   
   // Autosave project
   useEffect(() => {

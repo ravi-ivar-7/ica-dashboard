@@ -10,7 +10,6 @@ interface CanvasElementProps {
   onSelect: (id: string) => void;
   onUpdate: (id: string, updates: Partial<CanvasElementType>) => void;
   onDelete: (id: string) => void;
-  canvasBounds: { left: number; top: number; right: number; bottom: number };
 }
 
 const CanvasElement: React.FC<CanvasElementProps> = ({
@@ -21,8 +20,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
   isVisible,
   onSelect,
   onUpdate,
-  onDelete,
-  canvasBounds
+  onDelete
 }) => {
   const [isResizing, setIsResizing] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
@@ -95,50 +93,15 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
         if (resizeDirection.includes('right')) {
           newWidth = Math.max(50, startSize.width + deltaX);
         } else if (resizeDirection.includes('left')) {
-          const widthChange = Math.min(startSize.width - 50, deltaX);
-          newWidth = Math.max(50, startSize.width - widthChange);
-          newX = startPosition.x + widthChange;
+          newWidth = Math.max(50, startSize.width - deltaX);
+          newX = startPosition.x + (startSize.width - newWidth);
         }
         
         if (resizeDirection.includes('bottom')) {
           newHeight = Math.max(50, startSize.height + deltaY);
         } else if (resizeDirection.includes('top')) {
-          const heightChange = Math.min(startSize.height - 50, deltaY);
-          newHeight = Math.max(50, startSize.height - heightChange);
-          newY = startPosition.y + heightChange;
-        }
-        
-        // Ensure element stays within canvas bounds
-        if (newX < canvasBounds.left) {
-          const diff = canvasBounds.left - newX;
-          newX = canvasBounds.left;
-          if (resizeDirection.includes('left')) {
-            newWidth = Math.max(50, newWidth - diff);
-          }
-        }
-        
-        if (newY < canvasBounds.top) {
-          const diff = canvasBounds.top - newY;
-          newY = canvasBounds.top;
-          if (resizeDirection.includes('top')) {
-            newHeight = Math.max(50, newHeight - diff);
-          }
-        }
-        
-        if (newX + newWidth > canvasBounds.right) {
-          if (resizeDirection.includes('right')) {
-            newWidth = canvasBounds.right - newX;
-          } else {
-            newX = canvasBounds.right - newWidth;
-          }
-        }
-        
-        if (newY + newHeight > canvasBounds.bottom) {
-          if (resizeDirection.includes('bottom')) {
-            newHeight = canvasBounds.bottom - newY;
-          } else {
-            newY = canvasBounds.bottom - newHeight;
-          }
+          newHeight = Math.max(50, startSize.height - deltaY);
+          newY = startPosition.y + (startSize.height - newHeight);
         }
         
         onUpdate(element.id, { 
@@ -152,12 +115,8 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
         const deltaY = e.clientY - startPos.y;
         
         // Calculate new position
-        let newX = startPosition.x + deltaX;
-        let newY = startPosition.y + deltaY;
-        
-        // Ensure element stays within canvas bounds
-        newX = Math.max(canvasBounds.left, Math.min(newX, canvasBounds.right - element.width));
-        newY = Math.max(canvasBounds.top, Math.min(newY, canvasBounds.bottom - element.height));
+        const newX = startPosition.x + deltaX;
+        const newY = startPosition.y + deltaY;
         
         onUpdate(element.id, { 
           x: newX, 
@@ -181,17 +140,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [
-    isResizing, 
-    isMoving, 
-    startPos, 
-    startSize, 
-    startPosition, 
-    element, 
-    onUpdate, 
-    resizeDirection,
-    canvasBounds
-  ]);
+  }, [isResizing, isMoving, startPos, startSize, startPosition, element.id, element.width, element.height, element.x, element.y, onUpdate, resizeDirection]);
 
   // Control video playback based on isPlaying state
   useEffect(() => {
@@ -313,37 +262,39 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
         <>
           <div className="absolute inset-0 border-2 border-amber-500 pointer-events-none"></div>
           
-          {/* Resize handles - 8 directions */}
+          {/* Corner resize handles */}
           <div 
-            className="absolute top-0 left-0 w-3 h-3 bg-amber-500 rounded-full cursor-nwse-resize -translate-x-1/2 -translate-y-1/2"
-            onMouseDown={(e) => handleResizeStart(e, 'topleft')}
+            className="absolute top-0 left-0 w-6 h-6 bg-amber-500/50 rounded-full cursor-nwse-resize -translate-x-1/2 -translate-y-1/2"
+            onMouseDown={(e) => handleResizeStart(e, 'left-top')}
           ></div>
           <div 
-            className="absolute top-0 left-1/2 w-3 h-3 bg-amber-500 rounded-full cursor-ns-resize -translate-x-1/2 -translate-y-1/2"
+            className="absolute top-0 right-0 w-6 h-6 bg-amber-500/50 rounded-full cursor-nesw-resize translate-x-1/2 -translate-y-1/2"
+            onMouseDown={(e) => handleResizeStart(e, 'right-top')}
+          ></div>
+          <div 
+            className="absolute bottom-0 left-0 w-6 h-6 bg-amber-500/50 rounded-full cursor-nesw-resize -translate-x-1/2 translate-y-1/2"
+            onMouseDown={(e) => handleResizeStart(e, 'left-bottom')}
+          ></div>
+          <div 
+            className="absolute bottom-0 right-0 w-6 h-6 bg-amber-500/50 rounded-full cursor-nwse-resize translate-x-1/2 translate-y-1/2"
+            onMouseDown={(e) => handleResizeStart(e, 'right-bottom')}
+          ></div>
+          
+          {/* Edge resize handles */}
+          <div 
+            className="absolute top-0 left-1/2 w-8 h-6 bg-amber-500/50 rounded-full cursor-ns-resize -translate-x-1/2 -translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'top')}
           ></div>
           <div 
-            className="absolute top-0 right-0 w-3 h-3 bg-amber-500 rounded-full cursor-nesw-resize translate-x-1/2 -translate-y-1/2"
-            onMouseDown={(e) => handleResizeStart(e, 'topright')}
-          ></div>
-          <div 
-            className="absolute top-1/2 right-0 w-3 h-3 bg-amber-500 rounded-full cursor-ew-resize translate-x-1/2 -translate-y-1/2"
+            className="absolute right-0 top-1/2 w-6 h-8 bg-amber-500/50 rounded-full cursor-ew-resize translate-x-1/2 -translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'right')}
           ></div>
           <div 
-            className="absolute bottom-0 right-0 w-3 h-3 bg-amber-500 rounded-full cursor-nwse-resize translate-x-1/2 translate-y-1/2"
-            onMouseDown={(e) => handleResizeStart(e, 'bottomright')}
-          ></div>
-          <div 
-            className="absolute bottom-0 left-1/2 w-3 h-3 bg-amber-500 rounded-full cursor-ns-resize -translate-x-1/2 translate-y-1/2"
+            className="absolute bottom-0 left-1/2 w-8 h-6 bg-amber-500/50 rounded-full cursor-ns-resize -translate-x-1/2 translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'bottom')}
           ></div>
           <div 
-            className="absolute bottom-0 left-0 w-3 h-3 bg-amber-500 rounded-full cursor-nesw-resize -translate-x-1/2 translate-y-1/2"
-            onMouseDown={(e) => handleResizeStart(e, 'bottomleft')}
-          ></div>
-          <div 
-            className="absolute top-1/2 left-0 w-3 h-3 bg-amber-500 rounded-full cursor-ew-resize -translate-x-1/2 -translate-y-1/2"
+            className="absolute left-0 top-1/2 w-6 h-8 bg-amber-500/50 rounded-full cursor-ew-resize -translate-x-1/2 -translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'left')}
           ></div>
         </>

@@ -29,11 +29,10 @@ const Canvas: React.FC<CanvasProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [scale, setScale] = useState(1);
-  const [canvasBounds, setCanvasBounds] = useState({ left: 0, top: 0, right: 0, bottom: 0 });
   const [isResizing, setIsResizing] = useState(false);
-  const [startSize, setStartSize] = useState({ width: 0, height: 0 });
+  const [resizeDirection, setResizeDirection] = useState<string | null>(null);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
-  const [zoomLevel, setZoomLevel] = useState(1);
+  const [startSize, setStartSize] = useState({ width: 0, height: 0 });
 
   // Calculate canvas dimensions based on aspect ratio and container size
   useEffect(() => {
@@ -57,20 +56,8 @@ const Canvas: React.FC<CanvasProps> = ({
         height = width * (aspectHeight / aspectWidth);
       }
       
-      // Apply zoom level
-      width = width * zoomLevel;
-      height = height * zoomLevel;
-      
       setCanvasSize({ width, height });
       setScale(width / 1920); // Assuming 1920 is the base width
-      
-      // Update canvas boundaries
-      setCanvasBounds({
-        left: 0,
-        top: 0,
-        right: width,
-        bottom: height
-      });
     };
     
     updateCanvasSize();
@@ -79,8 +66,8 @@ const Canvas: React.FC<CanvasProps> = ({
     return () => {
       window.removeEventListener('resize', updateCanvasSize);
     };
-  }, [aspectRatio, zoomLevel]);
-  
+  }, [aspectRatio]);
+
   // Listen for double-clicked assets
   useEffect(() => {
     const handleAssetDoubleClick = (e: Event) => {
@@ -90,8 +77,9 @@ const Canvas: React.FC<CanvasProps> = ({
       if (!canvasRef.current) return;
       
       // Calculate center position of canvas
-      const centerX = canvasSize.width / (2 * scale);
-      const centerY = canvasSize.height / (2 * scale);
+      const rect = canvasRef.current.getBoundingClientRect();
+      const centerX = rect.width / (2 * scale);
+      const centerY = rect.height / (2 * scale);
       
       // Add asset to canvas at center position
       onDropAsset(asset, { x: centerX - 150, y: centerY - 100 });
@@ -102,7 +90,7 @@ const Canvas: React.FC<CanvasProps> = ({
     return () => {
       document.removeEventListener('asset-double-clicked', handleAssetDoubleClick);
     };
-  }, [onDropAsset, scale, canvasSize]);
+  }, [onDropAsset, scale]);
 
   // Handle canvas click (deselect elements)
   const handleCanvasClick = () => {
@@ -136,9 +124,9 @@ const Canvas: React.FC<CanvasProps> = ({
       const x = (e.clientX - rect.left) / scale;
       const y = (e.clientY - rect.top) / scale;
       
-      // Ensure the position is within canvas bounds
-      const boundedX = Math.max(0, Math.min(x, canvasBounds.right - 100));
-      const boundedY = Math.max(0, Math.min(y, canvasBounds.bottom - 100));
+      // Ensure the element stays within canvas bounds
+      const boundedX = Math.max(0, Math.min(x, canvasSize.width / scale - 100));
+      const boundedY = Math.max(0, Math.min(y, canvasSize.height / scale - 100));
       
       onDropAsset(assetData, { x: boundedX, y: boundedY });
     } catch (error) {
@@ -146,20 +134,11 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   };
 
-  // Handle zoom in
-  const handleZoomIn = () => {
-    setZoomLevel(prev => Math.min(prev + 0.1, 2));
-  };
-
-  // Handle zoom out
-  const handleZoomOut = () => {
-    setZoomLevel(prev => Math.max(prev - 0.1, 0.5));
-  };
-
   // Handle canvas resize
   const handleResizeStart = (e: React.MouseEvent, direction: string) => {
     e.stopPropagation();
     setIsResizing(true);
+    setResizeDirection(direction);
     setStartPos({ x: e.clientX, y: e.clientY });
     setStartSize({ width: canvasSize.width, height: canvasSize.height });
   };
@@ -171,32 +150,63 @@ const Canvas: React.FC<CanvasProps> = ({
     return layerA - layerB;
   });
 
-  return (
-    <div className="relative flex-1 flex items-center justify-center w-full h-full overflow-hidden bg-gray-900" ref={containerRef}>
-      {/* Zoom controls */}
-      <div className="absolute top-4 right-4 flex items-center space-x-2 z-20 bg-black/50 rounded-lg p-2">
-        <button 
-          onClick={handleZoomOut}
-          className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
-          disabled={zoomLevel <= 0.5}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-        </button>
-        <span className="text-white/80 text-xs">{Math.round(zoomLevel * 100)}%</span>
-        <button 
-          onClick={handleZoomIn}
-          className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
-          disabled={zoomLevel >= 2}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-        </button>
-      </div>
+  // Handle mouse move for resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !resizeDirection) return;
+      
+      const deltaX = e.clientX - startPos.x;
+      const deltaY = e.clientY - startPos.y;
+      
+      // Calculate new dimensions based on resize direction
+      let newWidth = startSize.width;
+      let newHeight = startSize.height;
+      
+      const [aspectWidth, aspectHeight] = aspectRatio.split(':').map(Number);
+      const aspectRatioValue = aspectWidth / aspectHeight;
+      
+      if (resizeDirection.includes('right')) {
+        newWidth = Math.max(200, startSize.width + deltaX);
+        newHeight = newWidth / aspectRatioValue;
+      } else if (resizeDirection.includes('left')) {
+        newWidth = Math.max(200, startSize.width - deltaX);
+        newHeight = newWidth / aspectRatioValue;
+      }
+      
+      if (resizeDirection.includes('bottom')) {
+        newHeight = Math.max(200, startSize.height + deltaY);
+        newWidth = newHeight * aspectRatioValue;
+      } else if (resizeDirection.includes('top')) {
+        newHeight = Math.max(200, startSize.height - deltaY);
+        newWidth = newHeight * aspectRatioValue;
+      }
+      
+      // Update canvas size
+      setCanvasSize({ width: newWidth, height: newHeight });
+      setScale(newWidth / 1920); // Update scale based on new width
+    };
+    
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      setResizeDirection(null);
+    };
+    
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, resizeDirection, startPos, startSize, aspectRatio]);
 
+  return (
+    <div 
+      ref={containerRef}
+      className="relative flex items-center justify-center w-full h-full overflow-hidden bg-gray-900"
+    >
       <div
         ref={canvasRef}
         className="relative bg-black shadow-2xl"
@@ -205,7 +215,6 @@ const Canvas: React.FC<CanvasProps> = ({
           height: `${canvasSize.height}px`,
           transform: `scale(${scale})`,
           transformOrigin: 'center',
-          border: '1px solid rgba(255, 255, 255, 0.2)'
         }}
         onClick={handleCanvasClick}
         onDragOver={handleDragOver}
@@ -217,77 +226,61 @@ const Canvas: React.FC<CanvasProps> = ({
           const isVisible = currentTime >= element.startTime && 
                            currentTime < (element.startTime + element.duration);
           
+          // Ensure element stays within canvas bounds
+          const boundedElement = {
+            ...element,
+            x: Math.max(0, Math.min(element.x, canvasSize.width / scale - element.width)),
+            y: Math.max(0, Math.min(element.y, canvasSize.height / scale - element.height))
+          };
+          
           return (
             <CanvasElement
               key={element.id}
-              element={element}
+              element={boundedElement}
               isSelected={selectedElementId === element.id}
               isPlaying={isPlaying}
               currentTime={currentTime}
               isVisible={isVisible}
               onSelect={onSelectElement}
-              onUpdate={onUpdateElement}
+              onUpdate={(id, updates) => {
+                // Ensure updates keep element within canvas bounds
+                const updatedElement = { ...element, ...updates };
+                const boundedUpdates = {
+                  ...updates,
+                  x: updates.x !== undefined ? 
+                    Math.max(0, Math.min(updatedElement.x, canvasSize.width / scale - updatedElement.width)) : 
+                    undefined,
+                  y: updates.y !== undefined ? 
+                    Math.max(0, Math.min(updatedElement.y, canvasSize.height / scale - updatedElement.height)) : 
+                    undefined
+                };
+                onUpdateElement(id, boundedUpdates);
+              }}
               onDelete={onDeleteElement}
-              canvasBounds={canvasBounds}
             />
           );
         })}
-
-        {/* Resize handles for the canvas itself */}
-        <div 
-          className="absolute bottom-0 right-0 w-6 h-6 bg-amber-500/50 rounded-tl-lg cursor-nwse-resize"
-          onMouseDown={(e) => handleResizeStart(e, 'bottomright')}
-        ></div>
+        
+        {/* Resize handles */}
+        <div className="absolute top-0 right-0 w-4 h-4 bg-amber-500 rounded-full cursor-ne-resize transform translate-x-1/2 -translate-y-1/2"
+             onMouseDown={(e) => handleResizeStart(e, 'right-top')}></div>
+        <div className="absolute bottom-0 right-0 w-4 h-4 bg-amber-500 rounded-full cursor-se-resize transform translate-x-1/2 translate-y-1/2"
+             onMouseDown={(e) => handleResizeStart(e, 'right-bottom')}></div>
+        <div className="absolute bottom-0 left-0 w-4 h-4 bg-amber-500 rounded-full cursor-sw-resize transform -translate-x-1/2 translate-y-1/2"
+             onMouseDown={(e) => handleResizeStart(e, 'left-bottom')}></div>
+        <div className="absolute top-0 left-0 w-4 h-4 bg-amber-500 rounded-full cursor-nw-resize transform -translate-x-1/2 -translate-y-1/2"
+             onMouseDown={(e) => handleResizeStart(e, 'left-top')}></div>
+        
+        {/* Side resize handles */}
+        <div className="absolute top-1/2 right-0 w-4 h-8 bg-amber-500 rounded-full cursor-e-resize transform translate-x-1/2 -translate-y-1/2"
+             onMouseDown={(e) => handleResizeStart(e, 'right')}></div>
+        <div className="absolute top-0 left-1/2 w-8 h-4 bg-amber-500 rounded-full cursor-n-resize transform -translate-x-1/2 -translate-y-1/2"
+             onMouseDown={(e) => handleResizeStart(e, 'top')}></div>
+        <div className="absolute top-1/2 left-0 w-4 h-8 bg-amber-500 rounded-full cursor-w-resize transform -translate-x-1/2 -translate-y-1/2"
+             onMouseDown={(e) => handleResizeStart(e, 'left')}></div>
+        <div className="absolute bottom-0 left-1/2 w-8 h-4 bg-amber-500 rounded-full cursor-s-resize transform -translate-x-1/2 translate-y-1/2"
+             onMouseDown={(e) => handleResizeStart(e, 'bottom')}></div>
       </div>
-
-      {/* Canvas resize handler */}
-      {isResizing && (
-        <div 
-          className="fixed inset-0 z-50 cursor-nwse-resize"
-          onMouseMove={(e) => {
-            if (isResizing && containerRef.current) {
-              const deltaX = e.clientX - startPos.x;
-              const deltaY = e.clientY - startPos.y;
-              
-              // Calculate new size while maintaining aspect ratio
-              const [aspectWidth, aspectHeight] = aspectRatio.split(':').map(Number);
-              const aspectRatio1 = aspectWidth / aspectHeight;
-              
-              // Determine which dimension to prioritize based on drag direction
-              let newWidth, newHeight;
-              if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                newWidth = Math.max(200, startSize.width + deltaX);
-                newHeight = newWidth / aspectRatio1;
-              } else {
-                newHeight = Math.max(150, startSize.height + deltaY);
-                newWidth = newHeight * aspectRatio1;
-              }
-              
-              // Calculate new zoom level
-              const containerWidth = containerRef.current.clientWidth;
-              const containerHeight = containerRef.current.clientHeight;
-              
-              let baseWidth, baseHeight;
-              if (containerWidth / containerHeight > aspectRatio1) {
-                baseHeight = containerHeight * 0.9;
-                baseWidth = baseHeight * aspectRatio1;
-              } else {
-                baseWidth = containerWidth * 0.9;
-                baseHeight = baseWidth / aspectRatio1;
-              }
-              
-              const newZoomLevel = newWidth / baseWidth;
-              setZoomLevel(Math.max(0.5, Math.min(2, newZoomLevel)));
-            }
-          }}
-          onMouseUp={() => {
-            setIsResizing(false);
-          }}
-          onMouseLeave={() => {
-            setIsResizing(false);
-          }}
-        />
-      )}
     </div>
   );
 };

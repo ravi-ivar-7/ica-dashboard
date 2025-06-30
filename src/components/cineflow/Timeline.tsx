@@ -37,9 +37,10 @@ const Timeline: React.FC<TimelineProps> = ({
   const [timelineWidth, setTimelineWidth] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [customDuration, setCustomDuration] = useState(duration);
-  const [showLayerPanel, setShowLayerPanel] = useState(true);
+  const [showLayerPanel, setShowLayerPanel] = useState(false);
   const [dragOverElementId, setDragOverElementId] = useState<string | null>(null);
   const [draggedElement, setDraggedElement] = useState<CanvasElementType | null>(null);
+  const [effectiveDuration, setEffectiveDuration] = useState(duration);
 
   // Update timeline width on resize
   useEffect(() => {
@@ -67,6 +68,10 @@ const Timeline: React.FC<TimelineProps> = ({
     if (elements.length === 0) return;
     
     const maxEndTime = Math.max(...elements.map(el => el.startTime + el.duration));
+    const newEffectiveDuration = Math.max(customDuration, maxEndTime);
+    
+    setEffectiveDuration(newEffectiveDuration);
+    
     if (maxEndTime > customDuration) {
       setCustomDuration(Math.ceil(maxEndTime));
     }
@@ -74,12 +79,12 @@ const Timeline: React.FC<TimelineProps> = ({
 
   // Convert time to position
   const timeToPosition = (time: number) => {
-    return (time / customDuration) * timelineWidth * zoom;
+    return (time / effectiveDuration) * timelineWidth * zoom;
   };
 
   // Convert position to time
   const positionToTime = (position: number) => {
-    return (position / (timelineWidth * zoom)) * customDuration;
+    return (position / (timelineWidth * zoom)) * effectiveDuration;
   };
 
   // Format time as MM:SS.ms
@@ -101,7 +106,7 @@ const Timeline: React.FC<TimelineProps> = ({
       const rect = timelineRef.current.getBoundingClientRect();
       const position = e.clientX - rect.left;
       const newTime = positionToTime(position);
-      onTimeUpdate(Math.max(0, Math.min(newTime, customDuration)));
+      onTimeUpdate(Math.max(0, Math.min(newTime, effectiveDuration)));
     }
   };
 
@@ -113,7 +118,7 @@ const Timeline: React.FC<TimelineProps> = ({
     const clickPosition = e.clientX - rect.left;
     const newTime = positionToTime(clickPosition);
     
-    onTimeUpdate(Math.max(0, Math.min(newTime, customDuration)));
+    onTimeUpdate(Math.max(0, Math.min(newTime, effectiveDuration)));
   };
 
   // Handle element drag
@@ -270,7 +275,7 @@ const Timeline: React.FC<TimelineProps> = ({
         const position = e.clientX - rect.left;
         const newTime = positionToTime(position);
         
-        onTimeUpdate(Math.max(0, Math.min(newTime, customDuration)));
+        onTimeUpdate(Math.max(0, Math.min(newTime, effectiveDuration)));
       } else if (isDraggingElement && dragType) {
         const element = elements.find(el => el.id === isDraggingElement);
         if (!element) return;
@@ -286,7 +291,7 @@ const Timeline: React.FC<TimelineProps> = ({
           let newTime = positionToTime(position - timeToPosition(element.duration) / 2);
           
           // Ensure the element stays within the timeline bounds
-          newTime = Math.max(0, Math.min(newTime, customDuration - element.duration));
+          newTime = Math.max(0, Math.min(newTime, effectiveDuration - element.duration));
           
           onUpdateElement(isDraggingElement, { startTime: newTime });
         } else if (dragType === 'start') {
@@ -309,7 +314,7 @@ const Timeline: React.FC<TimelineProps> = ({
           const deltaTime = positionToTime(deltaPos);
           
           let newDuration = startDuration + deltaTime;
-          newDuration = Math.max(0.1, Math.min(newDuration, customDuration - startTime));
+          newDuration = Math.max(0.1, Math.min(newDuration, effectiveDuration - startTime));
           
           onUpdateElement(isDraggingElement, { duration: newDuration });
         } else if (dragType === 'layer') {
@@ -420,7 +425,7 @@ const Timeline: React.FC<TimelineProps> = ({
     startDuration, 
     startLayer,
     elements, 
-    customDuration, 
+    effectiveDuration, 
     onTimeUpdate, 
     onUpdateElement,
     dragOverElementId,
@@ -442,6 +447,15 @@ const Timeline: React.FC<TimelineProps> = ({
     const newDuration = Number(e.target.value);
     if (newDuration >= 1) {
       setCustomDuration(newDuration);
+      
+      // Find the maximum end time of any element
+      const maxEndTime = elements.reduce((max, el) => {
+        const endTime = el.startTime + el.duration;
+        return endTime > max ? endTime : max;
+      }, 0);
+      
+      // Use the greater of new duration or max element end time
+      setEffectiveDuration(Math.max(newDuration, maxEndTime));
     }
   };
 
@@ -466,7 +480,7 @@ const Timeline: React.FC<TimelineProps> = ({
           
           <div className="flex items-center space-x-1 text-white/80 text-xs">
             <Clock className="w-3 h-3" />
-            <span>{formatTime(currentTime)} / {formatTime(customDuration)}</span>
+            <span>{formatTime(currentTime)} / {formatTime(effectiveDuration)}</span>
           </div>
         </div>
         
@@ -525,7 +539,6 @@ const Timeline: React.FC<TimelineProps> = ({
               {sortedElements.map(element => (
                 <div 
                   key={element.id}
-                  data-id={element.id}
                   className={`flex items-center p-1.5 rounded-lg text-xs cursor-grab active:cursor-grabbing ${
                     selectedElementId === element.id ? 'bg-amber-500/20 border border-amber-500/50' : 
                     dragOverElementId === element.id ? 'bg-blue-500/20 border border-blue-500/50' : 
@@ -564,7 +577,7 @@ const Timeline: React.FC<TimelineProps> = ({
           {/* Timeline ruler */}
           <div className="h-6 border-b border-white/10 relative">
             <div className="absolute inset-0 flex">
-              {Array.from({ length: Math.ceil(customDuration) + 1 }).map((_, i) => (
+              {Array.from({ length: Math.ceil(effectiveDuration) + 1 }).map((_, i) => (
                 <div 
                   key={i} 
                   className="flex-shrink-0 border-l border-white/20 h-full relative"
