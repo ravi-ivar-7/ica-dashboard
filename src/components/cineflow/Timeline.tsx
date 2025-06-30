@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { CanvasElementType } from '../../types/cineflow';
-import { Play, Pause, ChevronLeft, ChevronRight, Clock, Plus, Minus, Layers } from 'lucide-react';
+import { Play, Pause, ChevronLeft, ChevronRight, Clock, Layers } from 'lucide-react';
 
 interface TimelineProps {
   elements: CanvasElementType[];
@@ -569,7 +569,7 @@ const Timeline: React.FC<TimelineProps> = ({
             
             {/* Element timelines */}
             <div 
-              className="p-2 space-y-2" 
+              className="p-2 space-y-2 overflow-x-auto" 
               style={{ width: `${timelineWidth}px`, minWidth: '100%' }}
               ref={timelineContentRef}
             >
