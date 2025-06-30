@@ -29,7 +29,6 @@ export interface CanvasElementType {
 export interface CineFlowProject {
   id: string;
   name: string;
-  description: string;
   type: 'Reel' | 'Trailer' | 'Montage' | 'Custom';
   aspectRatio: '16:9' | '9:16' | '1:1';
   duration: number;
