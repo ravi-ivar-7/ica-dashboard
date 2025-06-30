@@ -118,8 +118,8 @@ export default function CineFlowEditor() {
       document.removeEventListener('keydown', handleUserInteraction);
       
       // Clean up audio context
-      if (audioContext && audioContext.state !== 'closed') {
-        audioContext.close().catch(console.error);
+      if (audioContext) {
+        audioContext.close();
       }
     };
   }, [audioContext]);
@@ -550,24 +550,6 @@ export default function CineFlowEditor() {
     setSelectedElementId(newElement.id);
   }, [project.elements, addToHistory]);
   
-  // Toggle left panel
-  const toggleLeftPanel = useCallback(() => {
-    if (isMobile) {
-      setShowLeftPanel(prev => !prev);
-    } else {
-      setLeftPanelCollapsed(prev => !prev);
-    }
-  }, [isMobile]);
-  
-  // Toggle right panel
-  const toggleRightPanel = useCallback(() => {
-    if (isMobile) {
-      setShowRightPanel(prev => !prev);
-    } else {
-      setRightPanelCollapsed(prev => !prev);
-    }
-  }, [isMobile]);
-  
   // Handle applying template
   const handleApplyTemplate = useCallback((template: Template) => {
     // Ask for confirmation if project already has elements
@@ -632,6 +614,25 @@ export default function CineFlowEditor() {
     ? project.elements.find(el => el.id === selectedElementId) || null
     : null;
 
+  // Toggle panels for mobile
+  const toggleLeftPanel = () => {
+    if (isMobile) {
+      setShowLeftPanel(!showLeftPanel);
+    } else {
+      setLeftPanelCollapsed(!leftPanelCollapsed);
+      setLeftPanelWidth(leftPanelCollapsed ? 250 : 40);
+    }
+  };
+
+  const toggleRightPanel = () => {
+    if (isMobile) {
+      setShowRightPanel(!showRightPanel);
+    } else {
+      setRightPanelCollapsed(!rightPanelCollapsed);
+      setRightPanelWidth(rightPanelCollapsed ? 250 : 40);
+    }
+  };
+
   // Handle project metadata changes
   const handleMetadataChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setProjectMetadata(prev => ({
@@ -656,7 +657,7 @@ export default function CineFlowEditor() {
   return (
     <ErrorBoundary>
       <div className="flex flex-col h-screen bg-black" ref={editorContainerRef}>
-        {/* Top toolbar with project metadata */}
+        {/* Top toolbar */}
         <div className="sticky top-0 z-50">
           <TopToolbar
             projectName={project.name}
