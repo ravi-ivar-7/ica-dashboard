@@ -18,34 +18,28 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   onToggleCollapse
 }) => {
   if (!selectedElement) {
-    return (
-  if (isCollapsed) {
-    return (
-      <div className="h-full bg-gray-900/80 border-l border-white/10 w-10 flex flex-col">
-        <div className="p-1 border-b border-white/10 flex justify-center">
-          <button
-            onClick={onToggleCollapse}
-            className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
-            title="Expand panel"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="flex-1 flex flex-col items-center justify-center">
-          {selectedElement ? (
-            <div className="text-white/50 text-xs writing-mode-vertical transform rotate-180">
-              Properties
-            </div>
-          ) : (
+    if (isCollapsed) {
+      return (
+        <div className="h-full bg-gray-900/80 border-l border-white/10 w-10 flex flex-col">
+          <div className="p-1 border-b border-white/10 flex justify-center">
+            <button
+              onClick={onToggleCollapse}
+              className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              title="Expand panel"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex-1 flex flex-col items-center justify-center">
             <div className="text-white/30 text-xs writing-mode-vertical transform rotate-180">
               No selection
             </div>
-          )}
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
+    return (
       <div className="h-full bg-gray-900/80 border-l border-white/10 p-3 flex items-center justify-center">
         <div className="flex flex-col items-center">
           {onToggleCollapse && (
