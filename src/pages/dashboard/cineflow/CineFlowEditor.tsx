@@ -71,16 +71,9 @@ export default function CineFlowEditor() {
   const [isMobile, setIsMobile] = useState(false);
   const [showLeftPanel, setShowLeftPanel] = useState(true);
   const [showRightPanel, setShowRightPanel] = useState(true);
-  const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
-  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
   const [showExportModal, setShowExportModal] = useState(false);
-  const [projectMetadata, setProjectMetadata] = useState({
-    title: 'Untitled Project',
-    description: '',
-    isEditing: false
-  });
   
   // History for undo/redo
   const [history, setHistory] = useState<CineFlowProject[]>([]);
@@ -91,7 +84,6 @@ export default function CineFlowEditor() {
   // Refs
   const playIntervalRef = useRef<number | null>(null);
   const projectRef = useRef(project);
-  const editorContainerRef = useRef<HTMLDivElement>(null);
   
   // Initialize audio context
   useEffect(() => {
@@ -146,12 +138,12 @@ export default function CineFlowEditor() {
       setShowLeftPanel(false);
       setShowRightPanel(false);
     } else {
-      setLeftPanelWidth(leftPanelCollapsed ? 40 : 250);
-      setRightPanelWidth(rightPanelCollapsed ? 40 : 250);
+      setLeftPanelWidth(250);
+      setRightPanelWidth(250);
       setShowLeftPanel(true);
       setShowRightPanel(true);
     }
-  }, [isMobile, leftPanelCollapsed, rightPanelCollapsed]);
+  }, [isMobile]);
   
   // Load project data
   useEffect(() => {
@@ -173,13 +165,6 @@ export default function CineFlowEditor() {
           
           parsedProject.elements = elementsWithLayers;
           setProject(parsedProject);
-          
-          // Set project metadata
-          setProjectMetadata({
-            title: parsedProject.name || 'Untitled Project',
-            description: parsedProject.description || '',
-            isEditing: false
-          });
           
           // Initialize history
           setHistory([parsedProject]);
@@ -616,116 +601,30 @@ export default function CineFlowEditor() {
 
   // Toggle panels for mobile
   const toggleLeftPanel = () => {
-    if (isMobile) {
-      setShowLeftPanel(!showLeftPanel);
-    } else {
-      setLeftPanelCollapsed(!leftPanelCollapsed);
-      setLeftPanelWidth(leftPanelCollapsed ? 250 : 40);
-    }
+    setShowLeftPanel(!showLeftPanel);
   };
 
   const toggleRightPanel = () => {
-    if (isMobile) {
-      setShowRightPanel(!showRightPanel);
-    } else {
-      setRightPanelCollapsed(!rightPanelCollapsed);
-      setRightPanelWidth(rightPanelCollapsed ? 250 : 40);
-    }
-  };
-
-  // Handle project metadata changes
-  const handleMetadataChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setProjectMetadata(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
-
-  const saveMetadata = () => {
-    setProject(prev => ({
-      ...prev,
-      name: projectMetadata.title,
-      description: projectMetadata.description
-    }));
-    setProjectMetadata(prev => ({
-      ...prev,
-      isEditing: false
-    }));
-    toast.success('Project details updated');
+    setShowRightPanel(!showRightPanel);
   };
 
   return (
     <ErrorBoundary>
-      <div className="flex flex-col h-screen bg-black" ref={editorContainerRef}>
+      <div className="flex flex-col h-screen bg-black">
         {/* Top toolbar */}
-        <div className="sticky top-0 z-50">
-          <TopToolbar
-            projectName={project.name}
-            isPlaying={isPlaying}
-            canUndo={canUndo}
-            canRedo={canRedo}
-            aspectRatio={project.aspectRatio}
-            onAspectRatioChange={handleAspectRatioChange}
-            onPlayPause={togglePlayPause}
-            onUndo={handleUndo}
-            onRedo={handleRedo}
-            onSave={handleSave}
-            onExport={handleExport}
-          />
-          
-          {/* Project Metadata */}
-          <div className="bg-gray-900/80 border-b border-white/10 p-2">
-            {projectMetadata.isEditing ? (
-              <div className="flex flex-col space-y-2">
-                <input
-                  type="text"
-                  name="title"
-                  value={projectMetadata.title}
-                  onChange={handleMetadataChange}
-                  className="bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-amber-400"
-                  placeholder="Project Title"
-                />
-                <textarea
-                  name="description"
-                  value={projectMetadata.description}
-                  onChange={handleMetadataChange}
-                  className="bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-amber-400 resize-none"
-                  placeholder="Project Description (optional)"
-                  rows={2}
-                />
-                <div className="flex justify-end space-x-2">
-                  <button
-                    onClick={() => setProjectMetadata(prev => ({ ...prev, isEditing: false }))}
-                    className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={saveMetadata}
-                    className="px-3 py-1 rounded-lg bg-amber-500 text-black text-xs font-semibold"
-                  >
-                    Save
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-white font-bold text-base">{projectMetadata.title}</h2>
-                  {projectMetadata.description && (
-                    <p className="text-white/60 text-xs">{projectMetadata.description}</p>
-                  )}
-                </div>
-                <button
-                  onClick={() => setProjectMetadata(prev => ({ ...prev, isEditing: true }))}
-                  className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
-                >
-                  <Zap className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        <TopToolbar
+          projectName={project.name}
+          isPlaying={isPlaying}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          aspectRatio={project.aspectRatio}
+          onAspectRatioChange={handleAspectRatioChange}
+          onPlayPause={togglePlayPause}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          onSave={handleSave}
+          onExport={handleExport}
+        />
         
         {/* Mobile toolbar */}
         {isMobile && (
@@ -758,7 +657,7 @@ export default function CineFlowEditor() {
               width: showLeftPanel ? `${leftPanelWidth}px` : '0px',
               transition: 'width 0.3s ease-in-out'
             }} 
-            className="flex-shrink-0 overflow-hidden sticky top-0 h-full"
+            className="flex-shrink-0 overflow-hidden"
           >
             {showLeftPanel && (
               <LeftPanel
@@ -766,8 +665,6 @@ export default function CineFlowEditor() {
                 onAddText={handleAddText}
                 onAddElement={handleAddElement}
                 onApplyTemplate={handleApplyTemplate}
-                isCollapsed={leftPanelCollapsed}
-                onToggleCollapse={toggleLeftPanel}
               />
             )}
           </div>
@@ -811,15 +708,13 @@ export default function CineFlowEditor() {
               width: showRightPanel ? `${rightPanelWidth}px` : '0px',
               transition: 'width 0.3s ease-in-out'
             }} 
-            className="flex-shrink-0 overflow-hidden sticky top-0 h-full"
+            className="flex-shrink-0 overflow-hidden"
           >
             {showRightPanel && (
               <PropertiesPanel
                 selectedElement={selectedElement}
                 onUpdateElement={updateElement}
                 onDeleteElement={deleteElement}
-                isCollapsed={rightPanelCollapsed}
-                onToggleCollapse={toggleRightPanel}
               />
             )}
           </div>
