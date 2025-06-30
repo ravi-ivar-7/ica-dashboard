@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Save, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Download, Save, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
 import ErrorBoundary from '../../../components/dashboard/ErrorBoundary';
 import { toast } from '../../../contexts/ToastContext';
 import { CanvasElementType, CineFlowProject, Template } from '../../../types/cineflow';
@@ -65,12 +65,14 @@ export default function CineFlowEditor() {
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [leftPanelWidth, setLeftPanelWidth] = useState(250);
-  const [rightPanelWidth, setRightPanelWidth] = useState(250);
+  const [leftPanelWidth, setLeftPanelWidth] = useState(0);
+  const [rightPanelWidth, setRightPanelWidth] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showLeftPanel, setShowLeftPanel] = useState(true);
   const [showRightPanel, setShowRightPanel] = useState(true);
+  const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [projectMetadata, setProjectMetadata] = useState({
     title: 'Untitled Project',
     description: '',
@@ -88,6 +90,7 @@ export default function CineFlowEditor() {
   // Refs
   const playIntervalRef = useRef<number | null>(null);
   const projectRef = useRef(project);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
   
   // Initialize audio context
   useEffect(() => {
@@ -125,7 +128,7 @@ export default function CineFlowEditor() {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
     
@@ -137,7 +140,7 @@ export default function CineFlowEditor() {
   // Adjust panels for mobile
   useEffect(() => {
     if (isMobile) {
-      setLeftPanelWidth(window.innerWidth * 0.8);
+      setLeftPanelWidth(window.innerWidth);
       setRightPanelWidth(window.innerWidth * 0.8);
       setShowLeftPanel(false);
       setShowRightPanel(false);
@@ -147,7 +150,7 @@ export default function CineFlowEditor() {
       setShowLeftPanel(true);
       setShowRightPanel(true);
     }
-  }, [isMobile]);
+  }, [isMobile, leftPanelCollapsed, rightPanelCollapsed]);
   
   // Load project data
   useEffect(() => {
@@ -201,6 +204,26 @@ export default function CineFlowEditor() {
   useEffect(() => {
     projectRef.current = project;
   }, [project]);
+  
+  // Toggle left panel
+  const toggleLeftPanel = () => {
+    if (isMobile) {
+      setShowLeftPanel(!showLeftPanel);
+    } else {
+      setLeftPanelCollapsed(!leftPanelCollapsed);
+      setLeftPanelWidth(leftPanelCollapsed ? 250 : 40);
+    }
+  };
+  
+  // Toggle right panel
+  const toggleRightPanel = () => {
+    if (isMobile) {
+      setShowRightPanel(!showRightPanel);
+    } else {
+      setRightPanelCollapsed(!rightPanelCollapsed);
+      setRightPanelWidth(rightPanelCollapsed ? 250 : 40);
+    }
+  };
   
   // Update undo/redo state
   useEffect(() => {
@@ -609,15 +632,6 @@ export default function CineFlowEditor() {
     ? project.elements.find(el => el.id === selectedElementId) || null
     : null;
 
-  // Toggle panels for mobile
-  const toggleLeftPanel = () => {
-    setShowLeftPanel(!showLeftPanel);
-  };
-
-  const toggleRightPanel = () => {
-    setShowRightPanel(!showRightPanel);
-  };
-
   // Handle project metadata changes
   const handleProjectDetailsChange = (name: string, description: string) => {
     setProjectMetadata({
@@ -634,7 +648,7 @@ export default function CineFlowEditor() {
 
   return (
     <ErrorBoundary>
-      <div className="flex flex-col h-screen bg-black">
+      <div className="flex flex-col h-screen bg-black" ref={editorContainerRef}>
         {/* Top toolbar */}
         <TopToolbar
           projectName={projectMetadata.title}
@@ -677,23 +691,46 @@ export default function CineFlowEditor() {
         
         {/* Main content */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Left panel */}
-          <div 
-            style={{ 
-              width: showLeftPanel ? `${leftPanelWidth}px` : '0px',
-              transition: 'width 0.3s ease-in-out'
-            }} 
-            className="flex-shrink-0 overflow-hidden"
-          >
-            {showLeftPanel && (
-              <LeftPanel
-                onAssetDragStart={handleAssetDragStart}
-                onAddText={handleAddText}
-                onAddElement={handleAddElement}
-                onApplyTemplate={handleApplyTemplate}
-              />
-            )}
-          </div>
+          {/* Left panel - Sticky */}
+          {isMobile ? (
+            <div 
+              className={`fixed bottom-0 left-0 z-40 w-full transform transition-transform duration-300 ${
+                showLeftPanel ? 'translate-y-0' : 'translate-y-full'
+              }`}
+              style={{
+                height: 'calc(50vh - 48px)', // Half viewport minus timeline height
+                maxHeight: 'calc(100vh - 200px)'
+              }}
+            >
+              <div className="h-full bg-gray-900/95 border-t border-white/20 rounded-t-xl shadow-lg overflow-hidden">
+                <LeftPanel
+                  onAssetDragStart={handleAssetDragStart}
+                  onAddText={handleAddText}
+                  onAddElement={handleAddElement}
+                  onApplyTemplate={handleApplyTemplate}
+                />
+              </div>
+            </div>
+          ) : (
+            <div 
+              style={{ 
+                width: showLeftPanel ? `${leftPanelWidth}px` : '0px',
+                transition: 'width 0.3s ease-in-out'
+              }} 
+              className="flex-shrink-0 overflow-hidden sticky top-0 h-full"
+            >
+              {showLeftPanel && (
+                <LeftPanel
+                  onAssetDragStart={handleAssetDragStart}
+                  onAddText={handleAddText}
+                  onAddElement={handleAddElement}
+                  onApplyTemplate={handleApplyTemplate}
+                  isCollapsed={leftPanelCollapsed}
+                  onToggleCollapse={toggleLeftPanel}
+                />
+              )}
+            </div>
+          )}
           
           {/* Center canvas */}
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -728,22 +765,44 @@ export default function CineFlowEditor() {
             </div>
           </div>
           
-          {/* Right panel */}
-          <div 
-            style={{ 
-              width: showRightPanel ? `${rightPanelWidth}px` : '0px',
-              transition: 'width 0.3s ease-in-out'
-            }} 
-            className="flex-shrink-0 overflow-hidden"
-          >
-            {showRightPanel && (
-              <PropertiesPanel
-                selectedElement={selectedElement}
-                onUpdateElement={updateElement}
-                onDeleteElement={deleteElement}
-              />
-            )}
-          </div>
+          {/* Right panel - Sticky */}
+          {isMobile ? (
+            <div 
+              className={`fixed bottom-0 right-0 z-40 w-full transform transition-transform duration-300 ${
+                showRightPanel ? 'translate-y-0' : 'translate-y-full'
+              }`}
+              style={{
+                height: 'calc(50vh - 48px)', // Half viewport minus timeline height
+                maxHeight: 'calc(100vh - 200px)'
+              }}
+            >
+              <div className="h-full bg-gray-900/95 border-t border-white/20 rounded-t-xl shadow-lg overflow-hidden">
+                <PropertiesPanel
+                  selectedElement={selectedElement}
+                  onUpdateElement={updateElement}
+                  onDeleteElement={deleteElement}
+                />
+              </div>
+            </div>
+          ) : (
+            <div 
+              style={{ 
+                width: showRightPanel ? `${rightPanelWidth}px` : '0px',
+                transition: 'width 0.3s ease-in-out'
+              }} 
+              className="flex-shrink-0 overflow-hidden sticky top-0 h-full"
+            >
+              {showRightPanel && (
+                <PropertiesPanel
+                  selectedElement={selectedElement}
+                  onUpdateElement={updateElement}
+                  onDeleteElement={deleteElement}
+                  isCollapsed={rightPanelCollapsed}
+                  onToggleCollapse={toggleRightPanel}
+                />
+              )}
+            </div>
+          )}
         </div>
         
         {/* Export Modal */}
@@ -753,6 +812,24 @@ export default function CineFlowEditor() {
             onClose={() => setShowExportModal(false)}
             project={project}
           />
+        )}
+        
+        {/* Mobile bottom panel buttons */}
+        {isMobile && (
+          <div className="fixed bottom-0 left-0 right-0 z-30 flex border-t border-white/20 bg-gray-900/90">
+            <button
+              onClick={toggleLeftPanel}
+              className="flex-1 py-3 text-center text-white/80 hover:text-white bg-gray-900/80 hover:bg-gray-800/80 transition-colors"
+            >
+              <span className="text-xs font-medium">Assets</span>
+            </button>
+            <button
+              onClick={toggleRightPanel}
+              className="flex-1 py-3 text-center text-white/80 hover:text-white bg-gray-900/80 hover:bg-gray-800/80 transition-colors"
+            >
+              <span className="text-xs font-medium">Properties</span>
+            </button>
+          </div>
         )}
       </div>
     </ErrorBoundary>

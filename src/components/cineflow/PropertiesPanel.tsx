@@ -1,22 +1,64 @@
 import React from 'react';
 import { CanvasElementType } from '../../types/cineflow';
-import { Trash2, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline } from 'lucide-react';
+import { Trash2, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface PropertiesPanelProps {
   selectedElement: CanvasElementType | null;
   onUpdateElement: (id: string, updates: Partial<CanvasElementType>) => void;
   onDeleteElement: (id: string) => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   selectedElement,
   onUpdateElement,
-  onDeleteElement
+  onDeleteElement,
+  isCollapsed = false,
+  onToggleCollapse
 }) => {
   if (!selectedElement) {
     return (
-      <div className="h-full bg-gray-900/80 border-l border-white/10 p-4 flex items-center justify-center">
-        <p className="text-white/50 text-sm">Select an element to edit its properties</p>
+  if (isCollapsed) {
+    return (
+      <div className="h-full bg-gray-900/80 border-l border-white/10 w-10 flex flex-col">
+        <div className="p-1 border-b border-white/10 flex justify-center">
+          <button
+            onClick={onToggleCollapse}
+            className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+            title="Expand panel"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center">
+          {selectedElement ? (
+            <div className="text-white/50 text-xs writing-mode-vertical transform rotate-180">
+              Properties
+            </div>
+          ) : (
+            <div className="text-white/30 text-xs writing-mode-vertical transform rotate-180">
+              No selection
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+      <div className="h-full bg-gray-900/80 border-l border-white/10 p-3 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          {onToggleCollapse && (
+            <button
+              onClick={onToggleCollapse}
+              className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors mb-4"
+              title="Collapse panel"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
+          <p className="text-white/50 text-xs text-center">Select an element to edit its properties</p>
+        </div>
       </div>
     );
   }
@@ -38,9 +80,18 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   };
 
   return (
-    <div className="h-full bg-gray-900/80 border-l border-white/10 p-4 overflow-y-auto">
-      <div className="flex items-center justify-between mb-4">
+    <div className="h-full bg-gray-900/80 border-l border-white/10 p-3 overflow-y-auto">
+      <div className="flex items-center justify-between mb-3">
         <h3 className="text-white font-bold text-sm">Element Properties</h3>
+        {onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+            title="Collapse panel"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        )}
         <button
           onClick={() => onDeleteElement(selectedElement.id)}
           className="text-red-400 hover:text-red-300 p-1 rounded-lg hover:bg-red-500/10 transition-colors"
@@ -49,7 +100,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         </button>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Element Type */}
         <div>
           <label className="block text-white/70 text-xs font-medium mb-1">Type</label>

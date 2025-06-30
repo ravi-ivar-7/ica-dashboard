@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs';
 import AssetItem from './AssetItem';
-import { Image, Video, Music, FileText, Sticker, Upload, Search, Folder, Plus } from 'lucide-react';
+import { Image, Video, Music, FileText, Sticker, Upload, Search, Folder, Plus, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { mockAssets, mockTemplates, mockElements, mockTextStyles } from '../../data/cineflowMockData';
 
 interface LeftPanelProps {
@@ -9,13 +9,17 @@ interface LeftPanelProps {
   onAddText: (textStyle: any) => void;
   onAddElement: (element: any) => void;
   onApplyTemplate: (template: any) => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 const LeftPanel: React.FC<LeftPanelProps> = ({ 
   onAssetDragStart, 
   onAddText, 
   onAddElement,
-  onApplyTemplate
+  onApplyTemplate,
+  isCollapsed = false,
+  onToggleCollapse
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('uploads');
@@ -23,6 +27,11 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
   const [filteredTemplates, setFilteredTemplates] = useState(mockTemplates);
   const [filteredElements, setFilteredElements] = useState(mockElements);
   const [filteredTextStyles, setFilteredTextStyles] = useState(mockTextStyles);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
+    images: false,
+    videos: false,
+    audio: false
+  });
 
   // Add sample audio assets if they don't exist
   useEffect(() => {
@@ -116,10 +125,88 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
     e.target.value = '';
   };
 
+  const toggleSectionCollapse = (section: string) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  if (isCollapsed) {
+    return (
+      <div className="flex flex-col h-full bg-gray-900/80 border-r border-white/10 w-10">
+        <div className="p-1 border-b border-white/10 flex justify-center">
+          <button
+            onClick={onToggleCollapse}
+            className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+            title="Expand panel"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex-1 flex flex-col items-center py-2 space-y-3">
+          <button
+            onClick={() => {
+              if (onToggleCollapse) onToggleCollapse();
+              setActiveTab('uploads');
+            }}
+            className={`p-1.5 rounded-lg ${activeTab === 'uploads' ? 'bg-amber-500 text-black' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+            title="Uploads"
+          >
+            <Folder className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {
+              if (onToggleCollapse) onToggleCollapse();
+              setActiveTab('templates');
+            }}
+            className={`p-1.5 rounded-lg ${activeTab === 'templates' ? 'bg-amber-500 text-black' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+            title="Templates"
+          >
+            <Image className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {
+              if (onToggleCollapse) onToggleCollapse();
+              setActiveTab('elements');
+            }}
+            className={`p-1.5 rounded-lg ${activeTab === 'elements' ? 'bg-amber-500 text-black' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+            title="Elements"
+          >
+            <Sticker className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {
+              if (onToggleCollapse) onToggleCollapse();
+              setActiveTab('text');
+            }}
+            className={`p-1.5 rounded-lg ${activeTab === 'text' ? 'bg-amber-500 text-black' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+            title="Text"
+          >
+            <FileText className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col h-full bg-gray-900/80 border-r border-white/10">
+      {/* Header with collapse button */}
+      <div className="p-2 border-b border-white/10 flex justify-between items-center">
+        <h3 className="text-white font-bold text-sm">Assets</h3>
+        {onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+            title="Collapse panel"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+      
       {/* Search */}
-      <div className="p-3 border-b border-white/10">
+      <div className="p-2 border-b border-white/10">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
           <input
@@ -154,8 +241,8 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
         </TabsList>
 
         {/* Uploads Tab */}
-        <TabsContent value="uploads" className="flex-1 flex flex-col overflow-hidden">
-          <div className="p-3 border-b border-white/10">
+        <TabsContent value="uploads" className="flex-1 overflow-y-auto">
+          <div className="p-2 border-b border-white/10">
             <label className="w-full flex items-center justify-center space-x-2 bg-white/10 hover:bg-white/15 text-white py-2 px-3 rounded-lg cursor-pointer transition-colors">
               <Upload className="w-4 h-4" />
               <span className="text-sm font-medium">Upload Media</span>
@@ -169,44 +256,92 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
             </label>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            <div className="text-white/60 text-xs font-medium mb-1">Images</div>
-            {filteredAssets.filter(asset => asset.type === 'image').map(asset => (
-              <AssetItem
-                key={asset.id}
-                id={asset.id}
-                type={asset.type}
-                name={asset.name}
-                src={asset.src}
-                onDragStart={onAssetDragStart}
-              />
-            ))}
+          <div className="flex-1 p-2 space-y-1.5">
+            {/* Images Section */}
+            <div>
+              <div 
+                className="flex items-center justify-between text-white/60 text-xs font-medium mb-1 cursor-pointer hover:text-white/80"
+                onClick={() => toggleSectionCollapse('images')}
+              >
+                <div className="flex items-center">
+                  <Image className="w-3 h-3 mr-1" />
+                  <span>Images</span>
+                </div>
+                {collapsedSections.images ? 
+                  <ChevronDown className="w-3 h-3" /> : 
+                  <ChevronUp className="w-3 h-3" />
+                }
+              </div>
+              
+              {!collapsedSections.images && filteredAssets.filter(asset => asset.type === 'image').map(asset => (
+                <AssetItem
+                  key={asset.id}
+                  id={asset.id}
+                  type={asset.type}
+                  name={asset.name}
+                  src={asset.src}
+                  onDragStart={onAssetDragStart}
+                />
+              ))}
+            </div>
             
-            <div className="text-white/60 text-xs font-medium mb-1 mt-4">Videos</div>
-            {filteredAssets.filter(asset => asset.type === 'video').map(asset => (
-              <AssetItem
-                key={asset.id}
-                id={asset.id}
-                type={asset.type}
-                name={asset.name}
-                src={asset.src}
-                duration={asset.duration}
-                onDragStart={onAssetDragStart}
-              />
-            ))}
+            {/* Videos Section */}
+            <div className="mt-3">
+              <div 
+                className="flex items-center justify-between text-white/60 text-xs font-medium mb-1 cursor-pointer hover:text-white/80"
+                onClick={() => toggleSectionCollapse('videos')}
+              >
+                <div className="flex items-center">
+                  <Video className="w-3 h-3 mr-1" />
+                  <span>Videos</span>
+                </div>
+                {collapsedSections.videos ? 
+                  <ChevronDown className="w-3 h-3" /> : 
+                  <ChevronUp className="w-3 h-3" />
+                }
+              </div>
+              
+              {!collapsedSections.videos && filteredAssets.filter(asset => asset.type === 'video').map(asset => (
+                <AssetItem
+                  key={asset.id}
+                  id={asset.id}
+                  type={asset.type}
+                  name={asset.name}
+                  src={asset.src}
+                  duration={asset.duration}
+                  onDragStart={onAssetDragStart}
+                />
+              ))}
+            </div>
             
-            <div className="text-white/60 text-xs font-medium mb-1 mt-4">Audio</div>
-            {filteredAssets.filter(asset => asset.type === 'audio').map(asset => (
-              <AssetItem
-                key={asset.id}
-                id={asset.id}
-                type={asset.type}
-                name={asset.name}
-                src={asset.src}
-                duration={asset.duration}
-                onDragStart={onAssetDragStart}
-              />
-            ))}
+            {/* Audio Section */}
+            <div className="mt-3">
+              <div 
+                className="flex items-center justify-between text-white/60 text-xs font-medium mb-1 cursor-pointer hover:text-white/80"
+                onClick={() => toggleSectionCollapse('audio')}
+              >
+                <div className="flex items-center">
+                  <Music className="w-3 h-3 mr-1" />
+                  <span>Audio</span>
+                </div>
+                {collapsedSections.audio ? 
+                  <ChevronDown className="w-3 h-3" /> : 
+                  <ChevronUp className="w-3 h-3" />
+                }
+              </div>
+              
+              {!collapsedSections.audio && filteredAssets.filter(asset => asset.type === 'audio').map(asset => (
+                <AssetItem
+                  key={asset.id}
+                  id={asset.id}
+                  type={asset.type}
+                  name={asset.name}
+                  src={asset.src}
+                  duration={asset.duration}
+                  onDragStart={onAssetDragStart}
+                />
+              ))}
+            </div>
           </div>
         </TabsContent>
 
@@ -235,7 +370,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
         </TabsContent>
 
         {/* Elements Tab */}
-        <TabsContent value="elements" className="flex-1 overflow-y-auto p-3 space-y-2">
+        <TabsContent value="elements" className="flex-1 overflow-y-auto p-2 space-y-1.5">
           <div className="grid grid-cols-3 gap-2">
             {filteredElements.map(element => (
               <div 
@@ -254,7 +389,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
         </TabsContent>
 
         {/* Text Tab */}
-        <TabsContent value="text" className="flex-1 overflow-y-auto p-3 space-y-2">
+        <TabsContent value="text" className="flex-1 overflow-y-auto p-2 space-y-1.5">
           <button
             className="w-full bg-white/10 hover:bg-white/15 text-white py-2 px-3 rounded-lg cursor-pointer transition-colors flex items-center justify-center space-x-2 mb-4"
             onClick={() => onAddText({ id: 'text-default', name: 'Default Text', style: {} })}
