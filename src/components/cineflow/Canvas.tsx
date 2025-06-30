@@ -33,7 +33,6 @@ const Canvas: React.FC<CanvasProps> = ({
   const [resizeDirection, setResizeDirection] = useState<string | null>(null);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [startSize, setStartSize] = useState({ width: 0, height: 0 });
-  const [startCanvasPos, setStartCanvasPos] = useState({ left: 0, top: 0 });
 
   // Calculate canvas dimensions based on aspect ratio and container size
   useEffect(() => {
@@ -138,15 +137,10 @@ const Canvas: React.FC<CanvasProps> = ({
   // Handle canvas resize
   const handleResizeStart = (e: React.MouseEvent, direction: string) => {
     e.stopPropagation();
-    if (!canvasRef.current) return;
-    
     setIsResizing(true);
     setResizeDirection(direction);
     setStartPos({ x: e.clientX, y: e.clientY });
     setStartSize({ width: canvasSize.width, height: canvasSize.height });
-    
-    const rect = canvasRef.current.getBoundingClientRect();
-    setStartCanvasPos({ left: rect.left, top: rect.top });
   };
 
   // Sort elements by layer for proper stacking
@@ -167,84 +161,34 @@ const Canvas: React.FC<CanvasProps> = ({
       // Calculate new dimensions based on resize direction
       let newWidth = startSize.width;
       let newHeight = startSize.height;
-      let newLeft = startCanvasPos.left;
-      let newTop = startCanvasPos.top;
       
       const [aspectWidth, aspectHeight] = aspectRatio.split(':').map(Number);
       const aspectRatioValue = aspectWidth / aspectHeight;
       
-      // Handle resizing from different directions
-      if (resizeDirection === 'right') {
+      if (resizeDirection.includes('right')) {
         newWidth = Math.max(200, startSize.width + deltaX);
-        // Don't adjust height when resizing from sides only
-      } else if (resizeDirection === 'left') {
-        const widthChange = Math.min(deltaX, startSize.width - 200);
-        newWidth = startSize.width - widthChange;
-        newLeft = startCanvasPos.left + widthChange;
-        // Don't adjust height when resizing from sides only
-      } else if (resizeDirection === 'bottom') {
+        newHeight = newWidth / aspectRatioValue;
+      } else if (resizeDirection.includes('left')) {
+        newWidth = Math.max(200, startSize.width - deltaX);
+        newHeight = newWidth / aspectRatioValue;
+      }
+      
+      if (resizeDirection.includes('bottom')) {
         newHeight = Math.max(200, startSize.height + deltaY);
-        // Don't adjust width when resizing from top/bottom only
-      } else if (resizeDirection === 'top') {
-        const heightChange = Math.min(deltaY, startSize.height - 200);
-        newHeight = startSize.height - heightChange;
-        newTop = startCanvasPos.top + heightChange;
-        // Don't adjust width when resizing from top/bottom only
-      } else if (resizeDirection === 'right-bottom') {
-        newWidth = Math.max(200, startSize.width + deltaX);
-        newHeight = Math.max(200, startSize.height + deltaY);
-      } else if (resizeDirection === 'right-top') {
-        newWidth = Math.max(200, startSize.width + deltaX);
-        const heightChange = Math.min(deltaY, startSize.height - 200);
-        newHeight = startSize.height - heightChange;
-        newTop = startCanvasPos.top + heightChange;
-      } else if (resizeDirection === 'left-bottom') {
-        const widthChange = Math.min(deltaX, startSize.width - 200);
-        newWidth = startSize.width - widthChange;
-        newLeft = startCanvasPos.left + widthChange;
-        newHeight = Math.max(200, startSize.height + deltaY);
-      } else if (resizeDirection === 'left-top') {
-        const widthChange = Math.min(deltaX, startSize.width - 200);
-        newWidth = startSize.width - widthChange;
-        newLeft = startCanvasPos.left + widthChange;
-        const heightChange = Math.min(deltaY, startSize.height - 200);
-        newHeight = startSize.height - heightChange;
-        newTop = startCanvasPos.top + heightChange;
+        newWidth = newHeight * aspectRatioValue;
+      } else if (resizeDirection.includes('top')) {
+        newHeight = Math.max(200, startSize.height - deltaY);
+        newWidth = newHeight * aspectRatioValue;
       }
       
       // Update canvas size
       setCanvasSize({ width: newWidth, height: newHeight });
       setScale(newWidth / 1920); // Update scale based on new width
-      
-      // Update canvas position if needed
-      if (canvasRef.current && (newLeft !== startCanvasPos.left || newTop !== startCanvasPos.top)) {
-        canvasRef.current.style.transformOrigin = 'top left';
-      } else if (canvasRef.current) {
-        canvasRef.current.style.transformOrigin = 'center';
-      }
     };
     
     const handleMouseUp = () => {
       setIsResizing(false);
       setResizeDirection(null);
-      
-      // Reset transform origin to center
-      if (canvasRef.current) {
-        canvasRef.current.style.transformOrigin = 'center';
-      }
-      
-      // Check if any elements are now outside the canvas and adjust them
-      elements.forEach(element => {
-        const maxX = canvasSize.width / scale - element.width;
-        const maxY = canvasSize.height / scale - element.height;
-        
-        if (element.x > maxX || element.y > maxY) {
-          onUpdateElement(element.id, {
-            x: Math.min(element.x, maxX),
-            y: Math.min(element.y, maxY)
-          });
-        }
-      });
     };
     
     if (isResizing) {
@@ -256,7 +200,7 @@ const Canvas: React.FC<CanvasProps> = ({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing, resizeDirection, startPos, startSize, startCanvasPos, aspectRatio, scale, elements, onUpdateElement]);
+  }, [isResizing, resizeDirection, startPos, startSize, aspectRatio]);
 
   return (
     <div 
