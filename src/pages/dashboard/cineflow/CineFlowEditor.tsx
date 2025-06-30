@@ -118,8 +118,8 @@ export default function CineFlowEditor() {
       document.removeEventListener('keydown', handleUserInteraction);
       
       // Clean up audio context
-      if (audioContext) {
-        audioContext.close();
+      if (audioContext && audioContext.state !== 'closed') {
+        audioContext.close().catch(console.error);
       }
     };
   }, [audioContext]);
@@ -614,25 +614,6 @@ export default function CineFlowEditor() {
     ? project.elements.find(el => el.id === selectedElementId) || null
     : null;
 
-  // Toggle panels for mobile
-  const toggleLeftPanel = () => {
-    if (isMobile) {
-      setShowLeftPanel(!showLeftPanel);
-    } else {
-      setLeftPanelCollapsed(!leftPanelCollapsed);
-      setLeftPanelWidth(leftPanelCollapsed ? 250 : 40);
-    }
-  };
-
-  const toggleRightPanel = () => {
-    if (isMobile) {
-      setShowRightPanel(!showRightPanel);
-    } else {
-      setRightPanelCollapsed(!rightPanelCollapsed);
-      setRightPanelWidth(rightPanelCollapsed ? 250 : 40);
-    }
-  };
-
   // Handle project metadata changes
   const handleMetadataChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setProjectMetadata(prev => ({
@@ -657,7 +638,7 @@ export default function CineFlowEditor() {
   return (
     <ErrorBoundary>
       <div className="flex flex-col h-screen bg-black" ref={editorContainerRef}>
-        {/* Top toolbar */}
+        {/* Top toolbar with project metadata */}
         <div className="sticky top-0 z-50">
           <TopToolbar
             projectName={project.name}
