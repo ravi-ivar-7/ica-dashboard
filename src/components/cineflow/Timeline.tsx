@@ -35,9 +35,9 @@ const Timeline: React.FC<TimelineProps> = ({
   const [startDuration, setStartDuration] = useState(0);
   const [startLayer, setStartLayer] = useState(0);
   const [timelineWidth, setTimelineWidth] = useState(0);
-  const [zoom, setZoom] = useState(0.5);
+  const [zoom, setZoom] = useState(1);
   const [customDuration, setCustomDuration] = useState(duration);
-  const [showLayerPanel, setShowLayerPanel] = useState(true);
+  const [showLayerPanel, setShowLayerPanel] = useState(false);
   const [dragOverElementId, setDragOverElementId] = useState<string | null>(null);
   const [draggedElement, setDraggedElement] = useState<CanvasElementType | null>(null);
 

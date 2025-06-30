@@ -53,7 +53,7 @@ export default function CineFlowEditor() {
     name: 'Untitled Project',
     type: 'Reel',
     aspectRatio: '16:9',
-    duration: 5,
+    duration: 30,
     elements: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
