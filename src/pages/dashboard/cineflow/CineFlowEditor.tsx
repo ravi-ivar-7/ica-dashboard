@@ -141,7 +141,7 @@ export default function CineFlowEditor() {
   useEffect(() => {
     if (isMobile) {
       setLeftPanelWidth(window.innerWidth);
-      setRightPanelWidth(window.innerWidth * 0.8);
+      setRightPanelWidth(window.innerWidth);
       setShowLeftPanel(false);
       setShowRightPanel(false);
     } else {
@@ -692,48 +692,26 @@ export default function CineFlowEditor() {
         {/* Main content */}
         <div className="flex-1 flex overflow-hidden">
           {/* Left panel - Sticky */}
-          {isMobile ? (
-            <div 
-              className={`fixed bottom-0 left-0 z-40 w-full transform transition-transform duration-300 ${
-                showLeftPanel ? 'translate-y-0' : 'translate-y-full'
-              }`}
-              style={{
-                height: 'calc(50vh - 48px)', // Half viewport minus timeline height
-                maxHeight: 'calc(100vh - 200px)'
-              }}
-            >
-              <div className="h-full bg-gray-900/95 border-t border-white/20 rounded-t-xl shadow-lg overflow-hidden">
-                <LeftPanel
-                  onAssetDragStart={handleAssetDragStart}
-                  onAddText={handleAddText}
-                  onAddElement={handleAddElement}
-                  onApplyTemplate={handleApplyTemplate}
-                />
-              </div>
-            </div>
-          ) : (
-            <div 
-              style={{ 
-                width: showLeftPanel ? `${leftPanelWidth}px` : '0px',
-                transition: 'width 0.3s ease-in-out'
-              }} 
-              className="flex-shrink-0 overflow-hidden sticky top-0 h-full"
-            >
-              {showLeftPanel && (
-                <LeftPanel
-                  onAssetDragStart={handleAssetDragStart}
-                  onAddText={handleAddText}
-                  onAddElement={handleAddElement}
-                  onApplyTemplate={handleApplyTemplate}
-                  isCollapsed={leftPanelCollapsed}
-                  onToggleCollapse={toggleLeftPanel}
-                />
-              )}
-            </div>
-          )}
+          <div className="flex-shrink-0 w-0">
+            {/* This is just a placeholder div to maintain layout */}
+            {(showLeftPanel || !isMobile) && (
+              <LeftPanel
+                onAssetDragStart={handleAssetDragStart}
+                onAddText={handleAddText}
+                onAddElement={handleAddElement}
+                onApplyTemplate={handleApplyTemplate}
+                isCollapsed={leftPanelCollapsed && !isMobile}
+                onToggleCollapse={toggleLeftPanel}
+              />
+            )}
+          </div>
           
           {/* Center canvas */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden" style={{ 
+            marginLeft: !isMobile && showLeftPanel ? (leftPanelCollapsed ? '40px' : '250px') : '0',
+            marginRight: !isMobile && showRightPanel ? (rightPanelCollapsed ? '40px' : '250px') : '0',
+            transition: 'margin 0.3s ease-in-out'
+          }}>
             {/* Canvas area */}
             <div className="flex-1 overflow-hidden bg-gray-800">
               <Canvas
@@ -766,43 +744,18 @@ export default function CineFlowEditor() {
           </div>
           
           {/* Right panel - Sticky */}
-          {isMobile ? (
-            <div 
-              className={`fixed bottom-0 right-0 z-40 w-full transform transition-transform duration-300 ${
-                showRightPanel ? 'translate-y-0' : 'translate-y-full'
-              }`}
-              style={{
-                height: 'calc(50vh - 48px)', // Half viewport minus timeline height
-                maxHeight: 'calc(100vh - 200px)'
-              }}
-            >
-              <div className="h-full bg-gray-900/95 border-t border-white/20 rounded-t-xl shadow-lg overflow-hidden">
-                <PropertiesPanel
-                  selectedElement={selectedElement}
-                  onUpdateElement={updateElement}
-                  onDeleteElement={deleteElement}
-                />
-              </div>
-            </div>
-          ) : (
-            <div 
-              style={{ 
-                width: showRightPanel ? `${rightPanelWidth}px` : '0px',
-                transition: 'width 0.3s ease-in-out'
-              }} 
-              className="flex-shrink-0 overflow-hidden sticky top-0 h-full"
-            >
-              {showRightPanel && (
-                <PropertiesPanel
-                  selectedElement={selectedElement}
-                  onUpdateElement={updateElement}
-                  onDeleteElement={deleteElement}
-                  isCollapsed={rightPanelCollapsed}
-                  onToggleCollapse={toggleRightPanel}
-                />
-              )}
-            </div>
-          )}
+          <div className="flex-shrink-0 w-0">
+            {/* This is just a placeholder div to maintain layout */}
+            {(showRightPanel || !isMobile) && (
+              <PropertiesPanel
+                selectedElement={selectedElement}
+                onUpdateElement={updateElement}
+                onDeleteElement={deleteElement}
+                isCollapsed={rightPanelCollapsed && !isMobile}
+                onToggleCollapse={toggleRightPanel}
+              />
+            )}
+          </div>
         </div>
         
         {/* Export Modal */}
@@ -816,16 +769,16 @@ export default function CineFlowEditor() {
         
         {/* Mobile bottom panel buttons */}
         {isMobile && (
-          <div className="fixed bottom-0 left-0 right-0 z-30 flex border-t border-white/20 bg-gray-900/90">
+          <div className="fixed bottom-0 left-0 right-0 z-30 flex border-t border-white/20 bg-gray-900/90 shadow-lg">
             <button
               onClick={toggleLeftPanel}
-              className="flex-1 py-3 text-center text-white/80 hover:text-white bg-gray-900/80 hover:bg-gray-800/80 transition-colors"
+              className={`flex-1 py-3 text-center ${showLeftPanel ? 'text-amber-400 bg-gray-800/90' : 'text-white/80 hover:text-white bg-gray-900/80 hover:bg-gray-800/80'} transition-colors`}
             >
               <span className="text-xs font-medium">Assets</span>
             </button>
             <button
               onClick={toggleRightPanel}
-              className="flex-1 py-3 text-center text-white/80 hover:text-white bg-gray-900/80 hover:bg-gray-800/80 transition-colors"
+              className={`flex-1 py-3 text-center ${showRightPanel ? 'text-amber-400 bg-gray-800/90' : 'text-white/80 hover:text-white bg-gray-900/80 hover:bg-gray-800/80'} transition-colors`}
             >
               <span className="text-xs font-medium">Properties</span>
             </button>

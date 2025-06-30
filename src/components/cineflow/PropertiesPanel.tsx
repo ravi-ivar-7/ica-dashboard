@@ -17,10 +17,12 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   isCollapsed = false,
   onToggleCollapse
 }) => {
+  const [showPanel, setShowPanel] = useState(true);
+
   if (!selectedElement) {
     if (isCollapsed) {
       return (
-        <div className="h-full bg-gray-900/80 border-l border-white/10 w-10 flex flex-col">
+        <div className="h-full bg-gray-900/80 border-l border-white/10 w-10 flex flex-col fixed top-0 right-0 z-40">
           <div className="p-1 border-b border-white/10 flex justify-center">
             <button
               onClick={onToggleCollapse}
@@ -40,7 +42,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     }
 
     return (
-      <div className="h-full bg-gray-900/80 border-l border-white/10 p-3 flex items-center justify-center">
+      <div className="h-full bg-gray-900/80 border-l border-white/10 p-3 flex items-center justify-center fixed top-0 right-0 z-40 w-64">
         <div className="flex flex-col items-center">
           {onToggleCollapse && (
             <button
@@ -74,7 +76,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   };
 
   return (
-    <div className="h-full bg-gray-900/80 border-l border-white/10 p-3 overflow-y-auto">
+    <div className="h-full bg-gray-900/80 border-l border-white/10 p-3 overflow-y-auto fixed top-0 right-0 z-40 w-64">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-white font-bold text-sm">Element Properties</h3>
         {onToggleCollapse && (
