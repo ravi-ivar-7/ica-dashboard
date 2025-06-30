@@ -502,6 +502,7 @@ const Timeline: React.FC<TimelineProps> = ({
               {sortedElements.map(element => (
                 <div 
                   key={element.id}
+                  data-id={element.id}
                   className={`flex items-center p-1.5 rounded-lg text-xs cursor-grab active:cursor-grabbing ${
                     selectedElementId === element.id ? 'bg-amber-500/20 border border-amber-500/50' : 
                     dragOverElementId === element.id ? 'bg-blue-500/20 border border-blue-500/50' : 

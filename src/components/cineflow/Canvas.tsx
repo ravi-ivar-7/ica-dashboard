@@ -28,6 +28,7 @@ const Canvas: React.FC<CanvasProps> = ({
   const canvasRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [scale, setScale] = useState(1);
+  const [canvasBounds, setCanvasBounds] = useState({ left: 0, top: 0, right: 0, bottom: 0 });
 
   // Calculate canvas dimensions based on aspect ratio and container size
   useEffect(() => {
@@ -55,6 +56,15 @@ const Canvas: React.FC<CanvasProps> = ({
       
       setCanvasSize({ width, height });
       setScale(width / 1920); // Assuming 1920 is the base width
+      
+      // Update canvas boundaries
+      const canvasRect = canvasRef.current.getBoundingClientRect();
+      setCanvasBounds({
+        left: 0,
+        top: 0,
+        right: width,
+        bottom: height
+      });
     };
     
     updateCanvasSize();
@@ -64,7 +74,7 @@ const Canvas: React.FC<CanvasProps> = ({
       window.removeEventListener('resize', updateCanvasSize);
     };
   }, [aspectRatio]);
-
+  
   // Listen for double-clicked assets
   useEffect(() => {
     const handleAssetDoubleClick = (e: Event) => {
@@ -74,9 +84,8 @@ const Canvas: React.FC<CanvasProps> = ({
       if (!canvasRef.current) return;
       
       // Calculate center position of canvas
-      const rect = canvasRef.current.getBoundingClientRect();
-      const centerX = rect.width / (2 * scale);
-      const centerY = rect.height / (2 * scale);
+      const centerX = canvasSize.width / (2 * scale);
+      const centerY = canvasSize.height / (2 * scale);
       
       // Add asset to canvas at center position
       onDropAsset(asset, { x: centerX - 150, y: centerY - 100 });
@@ -87,7 +96,7 @@ const Canvas: React.FC<CanvasProps> = ({
     return () => {
       document.removeEventListener('asset-double-clicked', handleAssetDoubleClick);
     };
-  }, [onDropAsset, scale]);
+  }, [onDropAsset, scale, canvasSize]);
 
   // Handle canvas click (deselect elements)
   const handleCanvasClick = () => {
@@ -121,7 +130,11 @@ const Canvas: React.FC<CanvasProps> = ({
       const x = (e.clientX - rect.left) / scale;
       const y = (e.clientY - rect.top) / scale;
       
-      onDropAsset(assetData, { x, y });
+      // Ensure the position is within canvas bounds
+      const boundedX = Math.max(0, Math.min(x, canvasBounds.right - 100));
+      const boundedY = Math.max(0, Math.min(y, canvasBounds.bottom - 100));
+      
+      onDropAsset(assetData, { x: boundedX, y: boundedY });
     } catch (error) {
       console.error('Error parsing dropped asset:', error);
     }
@@ -144,6 +157,7 @@ const Canvas: React.FC<CanvasProps> = ({
           height: `${canvasSize.height}px`,
           transform: `scale(${scale})`,
           transformOrigin: 'center',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
         }}
         onClick={handleCanvasClick}
         onDragOver={handleDragOver}
@@ -166,6 +180,7 @@ const Canvas: React.FC<CanvasProps> = ({
               onSelect={onSelectElement}
               onUpdate={onUpdateElement}
               onDelete={onDeleteElement}
+              canvasBounds={canvasBounds}
             />
           );
         })}
