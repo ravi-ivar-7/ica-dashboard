@@ -217,7 +217,7 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
               className="bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-white text-xs focus:outline-none focus:border-amber-400 resize-none flex-1"
               placeholder="Project Description (optional)"
               rows={1}
-            </div>
+            />
           </div>
         ) : (
           <div className="flex items-center space-x-2 overflow-hidden">
