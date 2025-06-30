@@ -65,7 +65,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
     
     return () => {
       // Clean up AudioContext when component unmounts
-      if (audioContextRef.current) {
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
         audioContextRef.current.close().catch(console.error);
       }
     };
