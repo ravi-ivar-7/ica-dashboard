@@ -20,7 +20,6 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
   isVisible,
   onSelect,
   onUpdate,
-  onDelete
 }) => {
   const [isResizing, setIsResizing] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
@@ -44,7 +43,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
   const handleVideoClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onSelect(element.id);
-    
+
     if (element.type === 'video' && videoRef.current) {
       if (videoRef.current.paused) {
         videoRef.current.play().catch(err => {
@@ -59,17 +58,11 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
     }
   };
 
-  // Handle audio click to play/pause
-  const handleAudioClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onSelect(element.id);
-  };
-
   // Handle volume change
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
     setVolume(newVolume);
-    
+
     if (element.type === 'audio' && audioRef.current) {
       audioRef.current.volume = newVolume;
     } else if (element.type === 'video' && videoRef.current) {
@@ -102,13 +95,13 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
       if (isResizing && resizeDirection) {
         const deltaX = e.clientX - startPos.x;
         const deltaY = e.clientY - startPos.y;
-        
+
         // Calculate new width, height, and position based on resize direction
         let newWidth = element.width;
         let newHeight = element.height;
         let newX = element.x;
         let newY = element.y;
-        
+
         // Handle different resize directions
         if (resizeDirection.includes('right')) {
           newWidth = Math.max(50, startSize.width + deltaX);
@@ -116,16 +109,16 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
           newWidth = Math.max(50, startSize.width - deltaX);
           newX = startPosition.x + (startSize.width - newWidth);
         }
-        
+
         if (resizeDirection.includes('bottom')) {
           newHeight = Math.max(50, startSize.height + deltaY);
         } else if (resizeDirection.includes('top')) {
           newHeight = Math.max(50, startSize.height - deltaY);
           newY = startPosition.y + (startSize.height - newHeight);
         }
-        
-        onUpdate(element.id, { 
-          width: newWidth, 
+
+        onUpdate(element.id, {
+          width: newWidth,
           height: newHeight,
           x: newX,
           y: newY
@@ -133,14 +126,14 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
       } else if (isMoving) {
         const deltaX = e.clientX - startPos.x;
         const deltaY = e.clientY - startPos.y;
-        
+
         // Calculate new position
         const newX = startPosition.x + deltaX;
         const newY = startPosition.y + deltaY;
-        
-        onUpdate(element.id, { 
-          x: newX, 
-          y: newY 
+
+        onUpdate(element.id, {
+          x: newX,
+          y: newY
         });
       }
     };
@@ -191,7 +184,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
         // Set the current time based on timeline position
         audioRef.current.currentTime = currentTime - element.startTime;
         audioRef.current.volume = volume;
-        
+
         // Play the audio
         audioRef.current.play().catch(err => {
           // Handle autoplay restrictions gracefully
@@ -220,16 +213,16 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
     switch (element.type) {
       case 'image':
         return (
-          <img 
-            src={element.src} 
-            alt={element.name || 'Image'} 
+          <img
+            src={element.src}
+            alt={element.name || 'Image'}
             className="w-full h-full object-cover"
           />
         );
       case 'video':
         return (
           <div className="relative w-full h-full">
-            <video 
+            <video
               ref={videoRef}
               src={element.src}
               className="w-full h-full object-cover"
@@ -266,7 +259,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
       case 'audio':
         return (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-r from-purple-500/30 to-blue-500/30 rounded-lg p-4">
-            <audio 
+            <audio
               ref={audioRef}
               src={element.src}
               className="hidden"
@@ -275,15 +268,15 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
               <div className="text-xl mb-2">🎵</div>
               <div className="font-semibold">{element.name || 'Audio Track'}</div>
             </div>
-            
+
             {/* Audio waveform visualization */}
             <div className="w-full h-12 bg-black/30 rounded-lg relative overflow-hidden">
               <div className="absolute inset-0 flex items-center justify-around px-1">
                 {[...Array(40)].map((_, i) => (
-                  <div 
-                    key={i} 
+                  <div
+                    key={i}
                     className="w-1 bg-blue-400/50 rounded-full"
-                    style={{ 
+                    style={{
                       height: `${10 + Math.sin(i * 0.5) * 20}px`,
                       opacity: isPlaying && isVisible && i < (currentTime - element.startTime) / element.duration * 40 ? 1 : 0.5
                     }}
@@ -291,7 +284,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                 ))}
               </div>
             </div>
-            
+
             {isSelected && (
               <div className="mt-4 w-full">
                 <input
@@ -309,9 +302,9 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
         );
       case 'text':
         return (
-          <div 
+          <div
             className="w-full h-full flex items-center justify-center overflow-hidden"
-            style={{ 
+            style={{
               color: element.color || 'white',
               fontFamily: element.fontFamily || 'sans-serif',
               fontSize: `${element.fontSize || 24}px`,
@@ -325,11 +318,17 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
         );
       case 'element':
         return (
-          <img 
-            src={element.src} 
-            alt={element.name || 'Element'} 
+          <img
+            src={element.src}
+            alt={element.name || 'Asset'}
             className="w-full h-full object-contain"
+            onError={(e) => {
+              e.currentTarget.src = '/icons/placeholder.png'; // fallback icon
+            }}
+            crossOrigin="anonymous"
+            referrerPolicy="no-referrer"
           />
+
         );
       default:
         return <div className="w-full h-full bg-gray-500/30"></div>;
@@ -358,44 +357,44 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
       <div className="w-full h-full overflow-hidden">
         {renderElement()}
       </div>
-      
+
       {/* Selection border and resize handles */}
       {isSelected && (
         <>
           <div className="absolute inset-0 border-2 border-amber-500 pointer-events-none"></div>
-          
+
           {/* Corner resize handles */}
-          <div 
+          <div
             className="absolute top-0 left-0 w-6 h-6 bg-amber-500/50 rounded-full cursor-nwse-resize -translate-x-1/2 -translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'left-top')}
           ></div>
-          <div 
+          <div
             className="absolute top-0 right-0 w-6 h-6 bg-amber-500/50 rounded-full cursor-nesw-resize translate-x-1/2 -translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'right-top')}
           ></div>
-          <div 
+          <div
             className="absolute bottom-0 left-0 w-6 h-6 bg-amber-500/50 rounded-full cursor-nesw-resize -translate-x-1/2 translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'left-bottom')}
           ></div>
-          <div 
+          <div
             className="absolute bottom-0 right-0 w-6 h-6 bg-amber-500/50 rounded-full cursor-nwse-resize translate-x-1/2 translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'right-bottom')}
           ></div>
-          
+
           {/* Edge resize handles */}
-          <div 
+          <div
             className="absolute top-0 left-1/2 w-8 h-6 bg-amber-500/50 rounded-full cursor-ns-resize -translate-x-1/2 -translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'top')}
           ></div>
-          <div 
+          <div
             className="absolute right-0 top-1/2 w-6 h-8 bg-amber-500/50 rounded-full cursor-ew-resize translate-x-1/2 -translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'right')}
           ></div>
-          <div 
+          <div
             className="absolute bottom-0 left-1/2 w-8 h-6 bg-amber-500/50 rounded-full cursor-ns-resize -translate-x-1/2 translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'bottom')}
           ></div>
-          <div 
+          <div
             className="absolute left-0 top-1/2 w-6 h-8 bg-amber-500/50 rounded-full cursor-ew-resize -translate-x-1/2 -translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'left')}
           ></div>

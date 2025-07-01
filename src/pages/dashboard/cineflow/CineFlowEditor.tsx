@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Download, Save, Zap, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { useParams, useLocation } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import ErrorBoundary from '../../../components/dashboard/ErrorBoundary';
 import { toast } from '../../../contexts/ToastContext';
-import { CanvasElementType, CineFlowProject, Template } from '../../../types/cineflow';
-import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
+import { CanvasElementType, CineFlowProject, Template, AspectRatio } from '../../../types/cineflow';
+
+import { createFFmpeg } from '@ffmpeg/ffmpeg';
+
+import { getProjectById } from '@/services/api/projects';
 
 // Import components
 import LeftPanel from '../../../components/cineflow/LeftPanel';
@@ -19,9 +22,9 @@ let ffmpeg: any = null;
 
 const loadFFmpeg = async () => {
   if (ffmpeg) return ffmpeg;
-  
+
   try {
-    ffmpeg = createFFmpeg({ 
+    ffmpeg = createFFmpeg({
       log: true,
       corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
     });
@@ -37,62 +40,127 @@ const loadFFmpeg = async () => {
   }
 };
 
-// Helper function to format time
-const formatTime = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
+
+
+
 
 export default function CineFlowEditor() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  
-  // Project state
-  const [project, setProject] = useState<CineFlowProject>({
-    id: id || 'new',
-    name: 'Untitled Project',
-    type: 'Reel',
-    aspectRatio: '16:9',
-    duration: 30,
-    elements: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    tags: []
-  });
-  
+  const location = useLocation();
+
+  const [project, setProject] = useState<CineFlowProject | null>();
+  const [isLoading, setIsLoading] = useState(false);
+
   // Editor state
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [leftPanelWidth, setLeftPanelWidth] = useState(0);
   const [rightPanelWidth, setRightPanelWidth] = useState(0);
-  const [isExporting, setIsExporting] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showLeftPanel, setShowLeftPanel] = useState(true);
   const [showRightPanel, setShowRightPanel] = useState(true);
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
-  const [projectMetadata, setProjectMetadata] = useState({
-    title: 'Untitled Project',
-    description: '',
-  });
+
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
-  const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
   const [showExportModal, setShowExportModal] = useState(false);
-  const [showLayerPanel, setShowLayerPanel] = useState(true);
-  
+
   // History for undo/redo
   const [history, setHistory] = useState<CineFlowProject[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
-  
+
+  const [timelineHeight, setTimelineHeight] = useState(240);
+
   // Refs
   const playIntervalRef = useRef<number | null>(null);
   const projectRef = useRef(project);
   const editorContainerRef = useRef<HTMLDivElement>(null);
-  
+
+  useEffect(() => {
+    const loadProject = async () => {
+      setIsLoading(true);
+      try {
+        const stateProject = location.state?.project || {};
+        const projectId = id || stateProject?.id;
+        console.log('Loading project with ID:', projectId);
+        console.log('State project:', stateProject);
+        // 1. Validate essentials
+        if (!projectId || !stateProject?.name) {
+          toast.error('Missing project ID or name');
+          return;
+        }
+
+        let loadedProject: CineFlowProject | null = null;
+
+        // 2. Try localStorage
+        const saved = localStorage.getItem(`cineflow-project-${projectId}`);
+        if (saved && saved !== 'undefined') {
+          const parsed = JSON.parse(saved);
+          parsed.elements = parsed.elements.map((el: CanvasElementType, i: number) => ({
+            ...el,
+            layer: el.layer !== undefined ? el.layer : i,
+          }));
+
+          loadedProject = {
+            ...parsed,
+            ...stateProject,
+            elements: parsed.elements,
+          };
+        } else {
+          try {
+            // 3. Try backend
+            const backend = await getProjectById(projectId);
+            loadedProject = {
+              ...backend,
+              ...stateProject,
+            };
+          } catch (err) {
+            // 4. Fallback: Create new project
+            loadedProject = {
+              id: projectId,
+              name: stateProject.name || 'Untitled Project',
+              description: stateProject.description || '',
+              aspectRatio: stateProject.aspectRatio || '16:9',
+              tags: stateProject.tags || [],
+              status: 'draft',
+              duration: 1,
+              elements: [],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+          }
+        }
+
+        if (!loadedProject) {
+          toast.error('Failed to load project');
+          return;
+        }
+
+        // 5. Set project
+        setProject(loadedProject);
+        console.log('Loaded project:', loadedProject);
+
+        // 6. Set initial history
+        setHistory([loadedProject]);
+        setHistoryIndex(0);
+
+        // 7. Load FFmpeg in background
+        loadFFmpeg().catch(console.error);
+
+      } catch (err) {
+        console.error('Error loading project:', err);
+        toast.error('Error loading project');
+      }
+      finally {
+        setIsLoading(false);
+      }
+    };
+    loadProject();
+  }, [id, location.state]);
+
   // Initialize audio context
   useEffect(() => {
     // Create AudioContext on first user interaction to avoid autoplay restrictions
@@ -116,14 +184,14 @@ export default function CineFlowEditor() {
     return () => {
       document.removeEventListener('click', handleUserInteraction);
       document.removeEventListener('keydown', handleUserInteraction);
-      
+
       // Clean up audio context
       if (audioContext && audioContext.state !== 'closed') {
         audioContext.close().catch(console.error);
       }
     };
   }, [audioContext]);
-  
+
   // Check if mobile
   useEffect(() => {
     const checkMobile = () => {
@@ -132,12 +200,12 @@ export default function CineFlowEditor() {
 
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    
+
     return () => {
       window.removeEventListener('resize', checkMobile);
     };
   }, []);
-  
+
   // Adjust panels for mobile
   useEffect(() => {
     if (isMobile) {
@@ -152,60 +220,14 @@ export default function CineFlowEditor() {
       setShowRightPanel(true);
     }
   }, [isMobile, leftPanelCollapsed, rightPanelCollapsed]);
-  
-  // Load project data
-  useEffect(() => {
-    const loadProject = async () => {
-      try {
-        // In a real app, we would fetch the project from an API
-        // For now, we'll use mock data
-        
-        // Check if we have a saved project in localStorage
-        const savedProject = localStorage.getItem(`cineflow-project-${id}`);
-        if (savedProject) {
-          const parsedProject = JSON.parse(savedProject);
-          
-          // Ensure all elements have a layer property
-          const elementsWithLayers = parsedProject.elements.map((el: CanvasElementType, index: number) => ({
-            ...el,
-            layer: el.layer !== undefined ? el.layer : index
-          }));
-          
-          parsedProject.elements = elementsWithLayers;
-          setProject(parsedProject);
 
-          // Set project metadata
-          setProjectMetadata({
-            title: parsedProject.name || 'Untitled Project',
-            description: parsedProject.description || '',
-          });
-          
-          // Initialize history
-          setHistory([parsedProject]);
-          setHistoryIndex(0);
-        } else {
-          // Initialize history with current project
-          setHistory([project]);
-          setHistoryIndex(0);
-        }
-        
-        // Try to load FFmpeg in the background
-        loadFFmpeg().catch(console.error);
-        
-      } catch (error) {
-        console.error('Error loading project:', error);
-        toast.error('Error loading project');
-      }
-    };
-    
-    loadProject();
-  }, [id]);
-  
+
+
   // Update project ref when project changes
   useEffect(() => {
     projectRef.current = project;
   }, [project]);
-  
+
   // Toggle left panel
   const toggleLeftPanel = () => {
     if (isMobile) {
@@ -215,7 +237,7 @@ export default function CineFlowEditor() {
       setLeftPanelWidth(leftPanelCollapsed ? 250 : 40);
     }
   };
-  
+
   // Toggle right panel
   const toggleRightPanel = () => {
     if (isMobile) {
@@ -225,29 +247,33 @@ export default function CineFlowEditor() {
       setRightPanelWidth(rightPanelCollapsed ? 250 : 40);
     }
   };
-  
+
   // Update undo/redo state
   useEffect(() => {
     setCanUndo(historyIndex > 0);
     setCanRedo(historyIndex < history.length - 1);
   }, [history, historyIndex]);
-  
+
   // Handle playback
   useEffect(() => {
+    if (!project) return;
+
     if (isPlaying) {
       playIntervalRef.current = window.setInterval(() => {
         setCurrentTime(prevTime => {
           const newTime = prevTime + 0.1;
-          
+
           // Find the maximum end time of any element
-          const maxEndTime = project.elements.reduce((max, el) => {
-            const endTime = el.startTime + el.duration;
-            return endTime > max ? endTime : max;
-          }, 0);
-          
+          const maxEndTime = project.elements
+            ? project.elements.reduce((max, el) => {
+              const endTime = el.startTime + el.duration;
+              return endTime > max ? endTime : max;
+            }, 0)
+            : 0;
+
           // Use the greater of project duration or max element end time
           const effectiveDuration = Math.max(project.duration, maxEndTime);
-          
+
           if (newTime >= effectiveDuration) {
             setIsPlaying(false);
             return 0;
@@ -259,25 +285,25 @@ export default function CineFlowEditor() {
       clearInterval(playIntervalRef.current);
       playIntervalRef.current = null;
     }
-    
+
     return () => {
       if (playIntervalRef.current) {
         clearInterval(playIntervalRef.current);
       }
     };
-  }, [isPlaying, project.duration, project.elements]);
-  
+  }, [isPlaying, project?.duration, project?.elements, project]);
+
   // Autosave project
   useEffect(() => {
     const autosaveInterval = setInterval(() => {
       localStorage.setItem(`cineflow-project-${id}`, JSON.stringify(projectRef.current));
     }, 5000);
-    
+
     return () => {
       clearInterval(autosaveInterval);
     };
   }, [id]);
-  
+
   // Add to history
   const addToHistory = useCallback((newProject: CineFlowProject) => {
     setHistory(prev => {
@@ -287,16 +313,7 @@ export default function CineFlowEditor() {
     });
     setHistoryIndex(prev => prev + 1);
   }, [historyIndex]);
-  
-  // Update project with history tracking
-  const updateProject = useCallback((updates: Partial<CineFlowProject>) => {
-    setProject(prev => {
-      const newProject = { ...prev, ...updates, updatedAt: new Date().toISOString() };
-      addToHistory(newProject);
-      return newProject;
-    });
-  }, [addToHistory]);
-  
+
   // Handle undo
   const handleUndo = useCallback(() => {
     if (historyIndex > 0) {
@@ -304,7 +321,7 @@ export default function CineFlowEditor() {
       setProject(history[historyIndex - 1]);
     }
   }, [history, historyIndex]);
-  
+
   // Handle redo
   const handleRedo = useCallback(() => {
     if (historyIndex < history.length - 1) {
@@ -312,62 +329,68 @@ export default function CineFlowEditor() {
       setProject(history[historyIndex + 1]);
     }
   }, [history, historyIndex]);
-  
+
   // Toggle play/pause
   const togglePlayPause = useCallback(() => {
     setIsPlaying(prev => !prev);
   }, []);
-  
+
   // Update element
   const updateElement = useCallback((id: string, updates: Partial<CanvasElementType>) => {
     setProject(prev => {
+      if (!prev) return prev; // early return if null
+
       const elementIndex = prev.elements.findIndex(el => el.id === id);
       if (elementIndex === -1) return prev;
-      
+
       const updatedElements = [...prev.elements];
       updatedElements[elementIndex] = { ...updatedElements[elementIndex], ...updates };
-      
-      const newProject = { 
-        ...prev, 
+
+      return {
+        ...prev,
         elements: updatedElements,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
-      
-      return newProject;
     });
   }, []);
-  
+
+
   // Delete element
   const deleteElement = useCallback((id: string) => {
     setProject(prev => {
+      if (!prev) return prev; // Handle null safely
+
       const newElements = prev.elements.filter(el => el.id !== id);
-      
-      const newProject = { 
-        ...prev, 
+
+      const newProject = {
+        ...prev,
         elements: newElements,
         updatedAt: new Date().toISOString()
       };
-      
+
       addToHistory(newProject);
       return newProject;
     });
-    
+
     setSelectedElementId(null);
   }, [addToHistory]);
-  
+
+
   // Handle asset drag start
   const handleAssetDragStart = useCallback((e: React.DragEvent, asset: any) => {
     e.dataTransfer.setData('application/json', JSON.stringify(asset));
   }, []);
-  
+
   // Handle asset drop on canvas
   const handleAssetDrop = useCallback((asset: any, position: { x: number, y: number }) => {
     // Create a new element based on the asset type
     let newElement: CanvasElementType;
-    
+
     // Find the highest layer to place the new element on top
-    const highestLayer = project.elements.reduce((max, el) => Math.max(max, el.layer || 0), 0);
-    
+    const highestLayer = project && project.elements
+      ? project.elements.reduce((max, el) => Math.max(max, el.layer || 0), 0)
+      : 0;
+
     switch (asset.type) {
       case 'image':
         newElement = {
@@ -380,7 +403,7 @@ export default function CineFlowEditor() {
           width: 300,
           height: 200,
           startTime: 0,
-          duration: 5,
+          duration: 1,
           layer: highestLayer + 1
         };
         break;
@@ -395,7 +418,7 @@ export default function CineFlowEditor() {
           width: 400,
           height: 225,
           startTime: 0,
-          duration: 10,
+          duration: 1,
           poster: asset.src, // Add poster for video preview
           layer: highestLayer + 1
         };
@@ -411,7 +434,7 @@ export default function CineFlowEditor() {
           width: 300,
           height: 100,
           startTime: 0,
-          duration: 15,
+          duration: 1,
           layer: highestLayer + 1
         };
         break;
@@ -425,7 +448,7 @@ export default function CineFlowEditor() {
           width: 300,
           height: 100,
           startTime: 0,
-          duration: 5,
+          duration: 1,
           fontFamily: asset.style?.fontFamily || 'sans-serif',
           fontSize: asset.style?.fontSize || 24,
           fontWeight: asset.style?.fontWeight || 'normal',
@@ -445,54 +468,59 @@ export default function CineFlowEditor() {
           width: 100,
           height: 100,
           startTime: 0,
-          duration: 5,
+          duration: 1,
           layer: highestLayer + 1
         };
         break;
       default:
         return;
     }
-    
+
     setProject(prev => {
-      const newProject = { 
-        ...prev, 
+      if (!prev) {
+        throw new Error("Project data is not initialized. Cannot add new element.");
+      }
+
+      const newProject: CineFlowProject = {
+        ...prev,
         elements: [...prev.elements, newElement],
         updatedAt: new Date().toISOString()
       };
-      
-      // Update project duration if needed
-      if (newElement.startTime + newElement.duration > prev.duration) {
-        newProject.duration = Math.ceil(newElement.startTime + newElement.duration);
+
+      const newEndTime = newElement.startTime + newElement.duration;
+      if (newEndTime > prev.duration) {
+        newProject.duration = Math.ceil(newEndTime);
       }
-      
+
       addToHistory(newProject);
       return newProject;
     });
-    
+
+
     setSelectedElementId(newElement.id);
-    
+
     // Add fade-in animation
     toast.success(`Added ${asset.name || asset.type}`, {
       duration: 2000
     });
-  }, [project.elements, addToHistory]);
-  
+  }, [project?.elements, addToHistory]);
+
   // Handle adding text
   const handleAddText = useCallback((textStyle: any) => {
     // Find the highest layer to place the new element on top
-    const highestLayer = project.elements.reduce((max, el) => Math.max(max, el.layer || 0), 0);
-    
+    const highestLayer = (project?.elements ?? []).reduce((max, el) => Math.max(max, el.layer || 0), 0);
+
     // Calculate center position of canvas
     const canvasElement = document.querySelector('.relative.bg-black.shadow-2xl');
     let centerX = 100;
     let centerY = 100;
-    
+
     if (canvasElement) {
       const rect = canvasElement.getBoundingClientRect();
       centerX = rect.width / 2 - 150;
       centerY = rect.height / 2 - 50;
     }
-    
+
     const newElement: CanvasElementType = {
       id: `text-${Date.now()}`,
       type: 'text',
@@ -502,7 +530,7 @@ export default function CineFlowEditor() {
       width: 300,
       height: 100,
       startTime: 0,
-      duration: 5,
+      duration: 1,
       fontFamily: textStyle.style?.fontFamily || 'sans-serif',
       fontSize: textStyle.style?.fontSize || 24,
       fontWeight: textStyle.style?.fontWeight || 'normal',
@@ -510,37 +538,52 @@ export default function CineFlowEditor() {
       textAlign: textStyle.style?.textAlign || 'center',
       layer: highestLayer + 1
     };
-    
+
     setProject(prev => {
-      const newProject = { 
-        ...prev, 
+      if (!prev) {
+        throw new Error("Project is not initialized when trying to add an text");
+      }
+
+      const newProject: CineFlowProject = {
+        ...prev,
         elements: [...prev.elements, newElement],
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
-      
+
       addToHistory(newProject);
       return newProject;
     });
-    
+
+
     setSelectedElementId(newElement.id);
-  }, [project.elements, addToHistory]);
-  
+  }, [project?.elements, addToHistory]);
+
   // Handle adding element
   const handleAddElement = useCallback((element: any) => {
-    // Find the highest layer to place the new element on top
-    const highestLayer = project.elements.reduce((max, el) => Math.max(max, el.layer || 0), 0);
-    
+    const base = project ?? projectRef.current;
+
+    if (!base) {
+      toast.error("Project is not loaded. Please wait to add element.");
+      return;
+    }
+
+    // Compute highest layer safely
+    const highestLayer = base.elements.reduce(
+      (max, el) => Math.max(max, el.layer || 0),
+      0
+    );
+
     // Calculate center position of canvas
     const canvasElement = document.querySelector('.relative.bg-black.shadow-2xl');
     let centerX = 100;
     let centerY = 100;
-    
+
     if (canvasElement) {
       const rect = canvasElement.getBoundingClientRect();
       centerX = rect.width / 2 - 50;
       centerY = rect.height / 2 - 50;
     }
-    
+
     const newElement: CanvasElementType = {
       id: `element-${Date.now()}`,
       type: 'element',
@@ -551,108 +594,186 @@ export default function CineFlowEditor() {
       width: 100,
       height: 100,
       startTime: 0,
-      duration: 5,
+      duration: 1,
       layer: highestLayer + 1
     };
-    
+
     setProject(prev => {
-      const newProject = { 
-        ...prev, 
-        elements: [...prev.elements, newElement],
+      const current = prev ?? projectRef.current;
+      if (!current) return prev;
+
+      const newProject: CineFlowProject = {
+        ...current,
+        elements: [...current.elements, newElement],
         updatedAt: new Date().toISOString()
       };
-      
+
       addToHistory(newProject);
       return newProject;
     });
-    
+
     setSelectedElementId(newElement.id);
-  }, [project.elements, addToHistory]);
-  
+
+  }, [project, addToHistory]);
+
+
   // Handle applying template
   const handleApplyTemplate = useCallback((template: Template) => {
     // Ask for confirmation if project already has elements
-    if (project.elements.length > 0) {
+    if (project && project.elements.length > 0) {
       if (!window.confirm('Applying a template will replace your current project. Continue?')) {
         return;
       }
     }
-    
+
     // Generate new IDs for template elements to avoid conflicts
     const elementsWithNewIds = template.elements.map((el, index) => ({
       ...el,
       id: `${el.id}-${Date.now()}`,
       layer: el.layer !== undefined ? el.layer : index
     }));
-    
+
     setProject(prev => {
-      const newProject = { 
-        ...prev, 
+      const base = prev ?? projectRef.current;
+      if (!base) {
+        toast.error('Project not loaded. Cannot apply template.');
+        return prev;
+      }
+
+      const newProject: CineFlowProject = {
+        ...base,
         aspectRatio: template.aspectRatio,
         duration: template.duration,
         elements: elementsWithNewIds,
         updatedAt: new Date().toISOString()
       };
-      
+
       addToHistory(newProject);
       return newProject;
     });
-    
+
+
     toast.success('Template applied successfully');
-  }, [project.elements.length, addToHistory]);
-  
+  }, [project?.elements?.length, addToHistory]);
+
   // Save project
   const handleSave = useCallback(() => {
     localStorage.setItem(`cineflow-project-${id}`, JSON.stringify(project));
     toast.success('Project saved successfully');
   }, [id, project]);
-  
+
   // Export project
   const handleExport = useCallback(() => {
     setShowExportModal(true);
   }, []);
-  
-  // Handle aspect ratio change
-  const handleAspectRatioChange = useCallback((newRatio: string) => {
+
+  const handleAspectRatioChange = useCallback((newRatio: AspectRatio) => {
     setProject(prev => {
-      const newProject = {
-        ...prev,
+      const base = prev ?? projectRef.current;
+      if (!base) return prev;
+
+      const newProject: CineFlowProject = {
+        ...base,
         aspectRatio: newRatio,
         updatedAt: new Date().toISOString()
       };
-      
+
       addToHistory(newProject);
       return newProject;
     });
-    
+
     toast.info(`Aspect ratio changed to ${newRatio}`);
   }, [addToHistory]);
-  
+
+
   // Get selected element
-  const selectedElement = selectedElementId 
+  const selectedElement = selectedElementId && project
     ? project.elements.find(el => el.id === selectedElementId) || null
     : null;
 
   // Handle project metadata changes
   const handleProjectDetailsChange = (name: string, description: string) => {
-    setProjectMetadata({
-      title: name,
-      description: description,
+    setProject(prev => {
+      if (!prev) {
+        console.error('Cannot update project metadata: project is null');
+        return prev; // Prevent null assignment
+      }
+
+      return {
+        ...prev,
+        name,
+        description,
+        updatedAt: new Date().toISOString()
+      };
     });
-    
-    setProject(prev => ({
-      ...prev,
-      name: name,
-      description: description
-    }));
   };
+
+  const handleDurationChange = useCallback((newDuration: number) => {
+    setProject(prev => {
+      const base = prev ?? projectRef.current;
+      if (!base) return prev;
+
+      const newProject: CineFlowProject = {
+        ...base,
+        duration: newDuration,
+        updatedAt: new Date().toISOString()
+      };
+
+      addToHistory(newProject);
+      return newProject;
+    });
+
+    toast.info(`Duration changed to ${newDuration}s`);
+  }, [addToHistory]);
+
+
+
+
+  // Add these handler functions
+  interface ResizeMouseDownEvent extends React.MouseEvent<HTMLDivElement, MouseEvent> { }
+  interface ResizeMouseMoveEvent extends MouseEvent { }
+
+  const handleResizeMouseDown = (e: ResizeMouseDownEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startHeight = timelineHeight;
+
+    const handleMouseMove = (moveEvent: ResizeMouseMoveEvent) => {
+      const deltaY = startY - moveEvent.clientY;
+      const newHeight = Math.max(150, Math.min(500, startHeight + deltaY)); // Min 150px, max 500px
+      setTimelineHeight(newHeight);
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  if (isLoading) {
+    return <div className="text-white p-8">Loading editor...</div>;
+  }
+
+  // Now we can safely assume project is loaded
+  if (!project) {
+    return <div className="text-white p-8">Failed to load project</div>;
+  }
 
   return (
     <ErrorBoundary>
-      <div className="flex flex-col h-screen bg-black" ref={editorContainerRef}>
+      <div
+        className="flex flex-col bg-black"
+        style={{
+          height: 'calc(100vh - 64px)'
+        }}
+        ref={editorContainerRef}
+      >
         {/* Top toolbar */}
         <TopToolbar
-          projectName={projectMetadata.title}
+          projectName={project.name}
           isPlaying={isPlaying}
           canUndo={canUndo}
           canRedo={canRedo}
@@ -663,43 +784,181 @@ export default function CineFlowEditor() {
           onRedo={handleRedo}
           onSave={handleSave}
           onExport={handleExport}
-          projectDescription={projectMetadata.description}
+          projectDescription={project.description}
           onProjectDetailsChange={handleProjectDetailsChange}
         />
-        
-        {/* Mobile toolbar */}
+
+
+        {/* Mobile toggle bar */}
         {isMobile && (
-          <div className="flex items-center justify-between p-2 bg-gray-900/90 border-b border-white/10">
+          <div className="sticky top-10   flex items-center justify-between p-2 bg-gray-900/90 border-b border-white/10">
             <button
               onClick={toggleLeftPanel}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-colors"
             >
               {showLeftPanel ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              <span>Assets</span>
             </button>
-            
-            <div className="text-white/70 text-xs">
-              {project.aspectRatio} • {formatTime(currentTime)}
-            </div>
-            
+
             <button
               onClick={toggleRightPanel}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-colors"
             >
+              <span>Properties</span>
               {showRightPanel ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </button>
           </div>
         )}
-        
-        {/* Main content */}
+
+        {/* Main layout */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Left panel - Assets */}
-          {isMobile ? (
-            <div 
-              className={`fixed bottom-0 left-0 z-40 w-full transform transition-transform duration-300 ${
-                showLeftPanel ? 'translate-y-0' : 'translate-y-full'
-              }`}
+          {/* Left Panel - Desktop */}
+          {!isMobile && (
+            <div
+              className="h-full flex-shrink-0 overflow-y-auto bg-gray-900"
               style={{
-                height: 'calc(50vh - 48px)', // Half viewport minus timeline height
+                width: showLeftPanel ? `${leftPanelWidth}px` : '0px',
+                transition: 'width 0.3s ease-in-out',
+                position: 'sticky',
+                left: 0,
+                top: 0,
+                alignSelf: 'flex-start'
+              }}
+            >
+              {showLeftPanel && (
+                <LeftPanel
+                  onAssetDragStart={handleAssetDragStart}
+                  onAddText={handleAddText}
+                  onAddElement={handleAddElement}
+                  onApplyTemplate={handleApplyTemplate}
+                  isCollapsed={leftPanelCollapsed}
+                  onToggleCollapse={toggleLeftPanel}
+                />
+              )}
+            </div>
+          )}
+
+
+          <div className="flex-1 flex flex-col min-w-0 min-h-0">
+            {/* Canvas container - flexible space above timeline */}
+            <div
+              className="flex-1 min-h-0 overflow-y-auto bg-gray-800"
+              style={{
+                minHeight: '150px' // Minimum canvas height
+              }}
+            >
+              <Canvas
+                elements={project.elements}
+                selectedElementId={selectedElementId}
+                aspectRatio={project.aspectRatio}
+                isPlaying={isPlaying}
+                currentTime={currentTime}
+                onSelectElement={setSelectedElementId}
+                onUpdateElement={updateElement}
+                onDeleteElement={deleteElement}
+                onDropAsset={handleAssetDrop}
+              />
+            </div>
+
+            {/* Timeline container - fixed height with vertical scroll when needed */}
+            <div
+              className="relative bg-gray-900 border-t border-white/10"
+              style={{
+                height: `${timelineHeight}px`,
+                minHeight: '150px' // Minimum timeline height
+              }}
+            >
+              {/* Resize handle */}
+              <div
+                className="absolute -top-[6px] left-0 right-0 h-1 flex items-center justify-center group cursor-row-resize z-50"
+                onMouseDown={handleResizeMouseDown}
+              >
+                <div className="w-8 h-2 rounded-full bg-gray-500 group-hover:bg-amber-400 transition-colors duration-200" />
+              </div>
+
+              {/* Scrollable timeline content */}
+              <div className="h-full overflow-y-auto">
+                <Timeline
+                  elements={project.elements}
+                  currentTime={currentTime}
+                  duration={project.duration}
+                  isPlaying={isPlaying}
+                  selectedElementId={selectedElementId}
+                  onTimeUpdate={setCurrentTime}
+                  onPlayPause={togglePlayPause}
+                  onSelectElement={setSelectedElementId}
+                  onUpdateElement={updateElement}
+                  onDurationChange={handleDurationChange}
+                />
+              </div>
+            </div>
+          </div>
+
+
+          
+          {/* Right Panel - Desktop */}
+          {!isMobile && (
+            <div
+              className="h-full flex-shrink-0 bg-gray-900"
+              style={{
+                width: showRightPanel ? (rightPanelCollapsed ? '32px' : `${rightPanelWidth}px`) : '0px',
+                transition: 'width 0.3s ease-in-out',
+                position: 'sticky',
+                right: 0,
+                top: 0,
+                alignSelf: 'flex-start',
+                borderLeft: '1px solid rgba(255,255,255,0.1)'
+              }}
+            >
+              {showRightPanel ? (
+                rightPanelCollapsed ? (
+                  <div className="h-full w-8 flex flex-col items-center justify-between py-4">
+                    <button
+                      onClick={toggleRightPanel}
+                      className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                      title="Expand properties"
+                    >
+                      <ChevronLeft className="w-4 h-4   " />
+                    </button>
+
+                    <div className="flex flex-col items-center space-y-1">
+                      {'PROPERTIES'.split('').map((letter, i) => (
+                        <span
+                          key={i}
+                          className="   text-white/50 font-mono leading-none"
+                        >
+                          {letter}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="w-4"></div>
+                  </div>
+                ) : (
+                  <div className="h-full overflow-y-auto">
+                    <PropertiesPanel
+                      selectedElement={selectedElement}
+                      onUpdateElement={updateElement}
+                      onDeleteElement={deleteElement}
+                      isCollapsed={rightPanelCollapsed}
+                      onToggleCollapse={toggleRightPanel}
+                    />
+                  </div>
+                )
+              ) : null}
+            </div>
+          )}
+        </div>
+
+        {/* Mobile Panels */}
+        {isMobile && (
+          <>
+            {/* Left Panel - Mobile */}
+            <div
+              className={`fixed bottom-0 left-0  w-full transform transition-transform duration-300 ${showLeftPanel ? 'translate-y-0' : 'translate-y-full'
+                }`}
+              style={{
+                height: 'calc(90vh - 48px)',
                 maxHeight: 'calc(100vh - 200px)'
               }}
             >
@@ -723,69 +982,13 @@ export default function CineFlowEditor() {
                 </div>
               </div>
             </div>
-          ) : (
-            <div 
-              style={{ 
-                width: showLeftPanel ? `${leftPanelWidth}px` : '0px',
-                transition: 'width 0.3s ease-in-out'
-              }} 
-              className="flex-shrink-0 overflow-hidden sticky top-0 h-full"
-            >
-              {showLeftPanel && (
-                <LeftPanel
-                  onAssetDragStart={handleAssetDragStart}
-                  onAddText={handleAddText}
-                  onAddElement={handleAddElement}
-                  onApplyTemplate={handleApplyTemplate}
-                  isCollapsed={leftPanelCollapsed}
-                  onToggleCollapse={toggleLeftPanel}
-                />
-              )}
-            </div>
-          )}
-          
-          {/* Center canvas */}
-          <div className="flex-1 flex flex-col overflow-y-auto">
-            {/* Canvas area */}
-            <div className="flex-1 overflow-hidden bg-gray-800">
-              <Canvas
-                elements={project.elements}
-                selectedElementId={selectedElementId}
-                aspectRatio={project.aspectRatio}
-                isPlaying={isPlaying}
-                currentTime={currentTime}
-                onSelectElement={setSelectedElementId}
-                onUpdateElement={updateElement}
-                onDeleteElement={deleteElement}
-                onDropAsset={handleAssetDrop}
-              />
-            </div>
-            
-            {/* Timeline */}
-            <div className="h-48 flex-shrink-0">
-              <Timeline
-                elements={project.elements}
-                currentTime={currentTime}
-                duration={project.duration}
-                isPlaying={isPlaying}
-                selectedElementId={selectedElementId}
-                onTimeUpdate={setCurrentTime}
-                onPlayPause={togglePlayPause}
-                onSelectElement={setSelectedElementId}
-                onUpdateElement={updateElement}
-                showLayerPanel={showLayerPanel}
-              />
-            </div>
-          </div>
-          
-          {/* Right panel - Properties */}
-          {isMobile ? (
-            <div 
-              className={`fixed bottom-0 right-0 z-40 w-full transform transition-transform duration-300 ${
-                showRightPanel ? 'translate-y-0' : 'translate-y-full'
-              }`}
+
+            {/* Right Panel - Mobile */}
+            <div
+              className={`fixed bottom-0 right-0   w-full transform transition-transform duration-300 ${showRightPanel ? 'translate-y-0' : 'translate-y-full'
+                }`}
               style={{
-                height: 'calc(50vh - 48px)', // Half viewport minus timeline height
+                height: 'calc(90vh - 48px)',
                 maxHeight: 'calc(100vh - 200px)'
               }}
             >
@@ -808,27 +1011,9 @@ export default function CineFlowEditor() {
                 </div>
               </div>
             </div>
-          ) : (
-            <div 
-              style={{ 
-                width: showRightPanel ? `${rightPanelWidth}px` : '0px',
-                transition: 'width 0.3s ease-in-out'
-              }} 
-              className="flex-shrink-0 overflow-hidden sticky top-0 h-full"
-            >
-              {showRightPanel && (
-                <PropertiesPanel
-                  selectedElement={selectedElement}
-                  onUpdateElement={updateElement}
-                  onDeleteElement={deleteElement}
-                  isCollapsed={rightPanelCollapsed}
-                  onToggleCollapse={toggleRightPanel}
-                />
-              )}
-            </div>
-          )}
-        </div>
-        
+          </>
+        )}
+
         {/* Export Modal */}
         {showExportModal && (
           <ExportModal
@@ -837,25 +1022,44 @@ export default function CineFlowEditor() {
             project={project}
           />
         )}
-        
-        {/* Mobile bottom panel buttons */}
-        {isMobile && (
-          <div className="fixed bottom-0 left-0 right-0 z-30 flex border-t border-white/20 bg-gray-900/90">
-            <button
-              onClick={toggleLeftPanel}
-              className="flex-1 py-3 text-center text-white/80 hover:text-white bg-gray-900/80 hover:bg-gray-800/80 transition-colors"
-            >
-              <span className="text-xs font-medium">Assets</span>
-            </button>
-            <button
-              onClick={toggleRightPanel}
-              className="flex-1 py-3 text-center text-white/80 hover:text-white bg-gray-900/80 hover:bg-gray-800/80 transition-colors"
-            >
-              <span className="text-xs font-medium">Properties</span>
-            </button>
-          </div>
-        )}
       </div>
     </ErrorBoundary>
   );
+
 }
+
+/**
+ * This file is too large and should be split into multiple files for better maintainability.
+ * 
+ * Suggested breakdown:
+ * 
+ * 1. Move all state and logic hooks (everything before the return statement) into a custom hook:
+ *    - Create a file: `useCineFlowEditor.ts`
+ *    - Export a hook: `useCineFlowEditor()`
+ *    - Move all state, effects, callbacks, and helper functions there.
+ *    - Return all needed state and handlers from the hook.
+ * 
+ * 2. Keep the main component file (`CineFlowEditor.tsx`) focused on layout and rendering:
+ *    - Import and use the custom hook.
+ *    - Destructure all state and handlers from the hook.
+ *    - Pass them to child components as needed.
+ * 
+ * 3. Optionally, move the FFmpeg logic to its own utility file:
+ *    - Create a file: `ffmpegUtils.ts`
+ *    - Export `loadFFmpeg` and any related helpers.
+ * 
+ * 4. Consider breaking out the mobile/desktop panel render logic into smaller presentational components.
+ * 
+ * Example usage after refactor:
+ * 
+ * ```tsx
+ * import useCineFlowEditor from './useCineFlowEditor';
+ * 
+ * export default function CineFlowEditor() {
+ *   const editor = useCineFlowEditor();
+ *   // ...render using editor.state and editor.handlers
+ * }
+ * ```
+ * 
+ * This will make the codebase easier to maintain and extend.
+ */

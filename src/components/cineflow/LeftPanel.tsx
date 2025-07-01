@@ -2,7 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs';
 import AssetItem from './AssetItem';
 import { Image, Video, Music, FileText, Sticker, Upload, Search, Folder, Plus, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
-import { mockAssets, mockTemplates, mockElements, mockTextStyles } from '../../data/cineflowMockData';
+import type { Asset, Template, Element, TextStyle } from '@/types/cineflow';
+import { getAssets } from '@/services/api/assets';
+import { getTemplates } from '@/services/api/cineflow/templates';
+import { getElements } from '@/services/api/cineflow/elements';
+import { getTextStyles } from '@/services/api/cineflow/textStyles';
+
 
 interface LeftPanelProps {
   onAssetDragStart: (e: React.DragEvent, asset: any) => void;
@@ -13,9 +18,9 @@ interface LeftPanelProps {
   onToggleCollapse?: () => void;
 }
 
-const LeftPanel: React.FC<LeftPanelProps> = ({ 
-  onAssetDragStart, 
-  onAddText, 
+const LeftPanel: React.FC<LeftPanelProps> = ({
+  onAssetDragStart,
+  onAddText,
   onAddElement,
   onApplyTemplate,
   isCollapsed = false,
@@ -23,83 +28,103 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('uploads');
-  const [filteredAssets, setFilteredAssets] = useState(mockAssets);
-  const [filteredTemplates, setFilteredTemplates] = useState(mockTemplates);
-  const [filteredElements, setFilteredElements] = useState(mockElements);
-  const [filteredTextStyles, setFilteredTextStyles] = useState(mockTextStyles);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
     images: false,
     videos: false,
     audio: false
   });
 
-  // Add sample audio assets if they don't exist
+  const [filteredAssets, setFilteredAssets] = useState<Asset[]>([]);
+  const [filteredTemplates, setFilteredTemplates] = useState<Template[]>([]);
+  const [filteredElements, setFilteredElements] = useState<Element[]>([]);
+  const [filteredTextStyles, setFilteredTextStyles] = useState<TextStyle[]>([]);
+
   useEffect(() => {
-    const hasAudioAssets = mockAssets.some(asset => asset.type === 'audio');
-    
-    if (!hasAudioAssets) {
-      const audioAssets = [
-        {
-          id: 'aud1',
-          type: 'audio' as const,
-          name: 'Upbeat Music.mp3',
-          src: 'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3',
-          duration: '00:01:30'
-        },
-        {
-          id: 'aud2',
-          type: 'audio' as const,
-          name: 'Ambient Sounds.mp3',
-          src: 'https://assets.mixkit.co/music/preview/mixkit-dreaming-big-31.mp3',
-          duration: '00:02:15'
-        },
-        {
-          id: 'aud3',
-          type: 'audio' as const,
-          name: 'Cinematic Score.mp3',
-          src: 'https://assets.mixkit.co/music/preview/mixkit-epical-drums-01-676.mp3',
-          duration: '00:01:45'
-        }
-      ];
-      
-      mockAssets.push(...audioAssets);
-      setFilteredAssets([...mockAssets]);
-    }
+    const fetchData = async () => {
+      try {
+        const [assets, templates, elements, textStyles] = await Promise.all([
+          getAssets(),
+          getTemplates(),
+          getElements(),
+          getTextStyles()
+        ]);
+
+        console.log('Fetched assets:', assets);
+        console.log('Fetched templates:', templates);
+        console.log('Fetched elements:', elements);
+        console.log('Fetched text styles:', textStyles);
+
+        setFilteredAssets(assets);
+        setFilteredTemplates(templates);
+        setFilteredElements(elements);
+        setFilteredTextStyles(textStyles);
+      } catch (err) {
+        console.error('Error loading asset-related data:', err);
+      }
+    };
+
+    fetchData();
   }, []);
 
-  // Filter assets based on search query
+
+
   useEffect(() => {
     if (searchQuery) {
-      setFilteredAssets(mockAssets.filter(asset => 
-        asset.name.toLowerCase().includes(searchQuery.toLowerCase())
-      ));
-      setFilteredTemplates(mockTemplates.filter(template => 
-        template.name.toLowerCase().includes(searchQuery.toLowerCase())
-      ));
-      setFilteredElements(mockElements.filter(element => 
-        element.name.toLowerCase().includes(searchQuery.toLowerCase())
-      ));
-      setFilteredTextStyles(mockTextStyles.filter(style => 
-        style.name.toLowerCase().includes(searchQuery.toLowerCase())
-      ));
+      const query = searchQuery.toLowerCase();
+
+      setFilteredAssets(prevAssets =>
+        prevAssets.filter(asset =>
+          asset.name.toLowerCase().includes(query)
+        )
+      );
+
+      setFilteredTemplates(prevTemplates =>
+        prevTemplates.filter(template =>
+          template.name.toLowerCase().includes(query)
+        )
+      );
+
+      setFilteredElements(prevElements =>
+        prevElements.filter(element =>
+          element.name.toLowerCase().includes(query)
+        )
+      );
+
+      setFilteredTextStyles(prevTextStyles =>
+        prevTextStyles.filter(style =>
+          style.name.toLowerCase().includes(query)
+        )
+      );
     } else {
-      setFilteredAssets(mockAssets);
-      setFilteredTemplates(mockTemplates);
-      setFilteredElements(mockElements);
-      setFilteredTextStyles(mockTextStyles);
+      // Re-fetch all base data again when searchQuery is cleared
+      const fetchAll = async () => {
+        const [assets, templates, elements, textStyles] = await Promise.all([
+          getAssets(),
+          getTemplates(),
+          getElements(),
+          getTextStyles()
+        ]);
+        setFilteredAssets(assets);
+        setFilteredTemplates(templates);
+        setFilteredElements(elements);
+        setFilteredTextStyles(textStyles);
+      };
+
+      fetchAll();
     }
   }, [searchQuery]);
+
 
   // Handle file upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    
+
     // Process each file
     Array.from(files).forEach(file => {
       // Create object URL for preview
       const url = URL.createObjectURL(file);
-      
+
       // Determine file type
       let type: 'image' | 'video' | 'audio' = 'image';
       if (file.type.startsWith('video/')) {
@@ -107,20 +132,20 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
       } else if (file.type.startsWith('audio/')) {
         type = 'audio';
       }
-      
+
       // Create new asset
       const newAsset = {
         id: `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         type,
         name: file.name,
         src: url,
-        duration: type === 'image' ? undefined : '00:00:30'
+        duration: type === 'image' ? undefined : '00:00:05'
       };
-      
+
       // Add to assets
       setFilteredAssets(prev => [newAsset, ...prev]);
     });
-    
+
     // Reset input
     e.target.value = '';
   };
@@ -189,11 +214,13 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
       </div>
     );
   }
+
+
   return (
     <div className="flex flex-col h-full bg-gray-900/80 border-r border-white/10 overflow-hidden">
       {/* Header with collapse button */}
-      <div className="p-2 border-b border-white/10 flex justify-between items-center">
-        <h3 className="text-white font-bold text-sm">Assets</h3>
+      <div className="p-2 border-b border-white/10 flex justify-between items-center hidden md:flex">
+        <h3 className="text-white font-bold text-sm ">Assets</h3>
         {onToggleCollapse && (
           <button
             onClick={onToggleCollapse}
@@ -204,7 +231,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
           </button>
         )}
       </div>
-      
+
       {/* Search */}
       <div className="p-2 border-b border-white/10">
         <div className="relative">
@@ -221,7 +248,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
 
       {/* Tabs */}
       <Tabs defaultValue="uploads" className="flex-1 flex flex-col overflow-hidden">
-        <TabsList className="px-2 pt-2 border-b border-white/10">
+        <TabsList className="px-2 p-2 border-b border-white/10">
           <TabsTrigger value="uploads" onClick={() => setActiveTab('uploads')}>
             <Folder className="w-4 h-4 mr-1" />
             <span>Uploads</span>
@@ -241,25 +268,25 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
         </TabsList>
 
         {/* Uploads Tab */}
-        <TabsContent value="uploads" className="flex-1 overflow-y-auto">
+        <TabsContent value="uploads" className="flex-1 overflow-y-auto ">
           <div className="p-2 border-b border-white/10">
             <label className="w-full flex items-center justify-center space-x-2 bg-white/10 hover:bg-white/15 text-white py-2 px-3 rounded-lg cursor-pointer transition-colors">
               <Upload className="w-4 h-4" />
               <span className="text-sm font-medium">Upload Media</span>
-              <input 
-                type="file" 
-                className="hidden" 
-                accept="image/*,video/*,audio/*" 
-                multiple 
+              <input
+                type="file"
+                className="hidden"
+                accept="image/*,video/*,audio/*"
+                multiple
                 onChange={handleFileUpload}
               />
             </label>
           </div>
-          
+
           <div className="flex-1 p-2 space-y-1.5">
             {/* Images Section */}
             <div>
-              <div 
+              <div
                 className="flex items-center justify-between text-white/60 text-xs font-medium mb-1 cursor-pointer hover:text-white/80"
                 onClick={() => toggleSectionCollapse('images')}
               >
@@ -267,12 +294,12 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
                   <Image className="w-3 h-3 mr-1" />
                   <span>Images</span>
                 </div>
-                {collapsedSections.images ? 
-                  <ChevronDown className="w-3 h-3" /> : 
+                {collapsedSections.images ?
+                  <ChevronDown className="w-3 h-3" /> :
                   <ChevronUp className="w-3 h-3" />
                 }
               </div>
-              
+
               {!collapsedSections.images && filteredAssets.filter(asset => asset.type === 'image').map(asset => (
                 <AssetItem
                   key={asset.id}
@@ -284,10 +311,10 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
                 />
               ))}
             </div>
-            
+
             {/* Videos Section */}
             <div className="mt-3">
-              <div 
+              <div
                 className="flex items-center justify-between text-white/60 text-xs font-medium mb-1 cursor-pointer hover:text-white/80"
                 onClick={() => toggleSectionCollapse('videos')}
               >
@@ -295,12 +322,12 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
                   <Video className="w-3 h-3 mr-1" />
                   <span>Videos</span>
                 </div>
-                {collapsedSections.videos ? 
-                  <ChevronDown className="w-3 h-3" /> : 
+                {collapsedSections.videos ?
+                  <ChevronDown className="w-3 h-3" /> :
                   <ChevronUp className="w-3 h-3" />
                 }
               </div>
-              
+
               {!collapsedSections.videos && filteredAssets.filter(asset => asset.type === 'video').map(asset => (
                 <AssetItem
                   key={asset.id}
@@ -313,10 +340,10 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
                 />
               ))}
             </div>
-            
+
             {/* Audio Section */}
             <div className="mt-3">
-              <div 
+              <div
                 className="flex items-center justify-between text-white/60 text-xs font-medium mb-1 cursor-pointer hover:text-white/80"
                 onClick={() => toggleSectionCollapse('audio')}
               >
@@ -324,12 +351,12 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
                   <Music className="w-3 h-3 mr-1" />
                   <span>Audio</span>
                 </div>
-                {collapsedSections.audio ? 
-                  <ChevronDown className="w-3 h-3" /> : 
+                {collapsedSections.audio ?
+                  <ChevronDown className="w-3 h-3" /> :
                   <ChevronUp className="w-3 h-3" />
                 }
               </div>
-              
+
               {!collapsedSections.audio && filteredAssets.filter(asset => asset.type === 'audio').map(asset => (
                 <AssetItem
                   key={asset.id}
@@ -349,15 +376,15 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
         <TabsContent value="templates" className="flex-1 overflow-y-auto p-3 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             {filteredTemplates.map(template => (
-              <div 
+              <div
                 key={template.id}
                 className="group bg-white/5 rounded-lg overflow-hidden cursor-pointer hover:bg-white/10 transition-all duration-200"
                 onClick={() => onApplyTemplate(template)}
               >
                 <div className="aspect-video relative">
-                  <img 
-                    src={template.thumbnail} 
-                    alt={template.name} 
+                  <img
+                    src={template.thumbnail}
+                    alt={template.name}
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-start p-2">
@@ -373,16 +400,22 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
         <TabsContent value="elements" className="flex-1 overflow-y-auto p-2 space-y-1.5">
           <div className="grid grid-cols-3 gap-2">
             {filteredElements.map(element => (
-              <div 
+              <div
                 key={element.id}
                 className="aspect-square bg-white/5 rounded-lg p-2 hover:bg-white/10 transition-all duration-200 cursor-pointer flex items-center justify-center"
                 onClick={() => onAddElement(element)}
               >
-                <img 
-                  src={element.src} 
-                  alt={element.name} 
-                  className="max-w-full max-h-full object-contain"
+                <img
+                  src={element.src}
+                  alt={element.name || 'Asset'}
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    e.currentTarget.src = '/icons/placeholder.png'; // fallback icon
+                  }}
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
                 />
+
               </div>
             ))}
           </div>
@@ -397,15 +430,15 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
             <Plus className="w-4 h-4" />
             <span className="text-sm font-medium">Add Text</span>
           </button>
-          
+
           <div className="grid grid-cols-1 gap-2">
             {filteredTextStyles.map(textStyle => (
-              <div 
+              <div
                 key={textStyle.id}
                 className="bg-white/5 rounded-lg p-3 hover:bg-white/10 transition-all duration-200 cursor-pointer"
                 onClick={() => onAddText(textStyle)}
               >
-                <p 
+                <p
                   className="text-center truncate"
                   style={{
                     fontFamily: textStyle.style.fontFamily || 'sans-serif',

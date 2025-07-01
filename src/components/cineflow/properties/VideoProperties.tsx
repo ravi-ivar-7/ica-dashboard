@@ -1,0 +1,93 @@
+// properties/VideoProperties.tsx
+import React from 'react';
+import { CanvasElementType } from '@/types/cineflow';
+
+interface VideoPropertiesProps {
+  element: CanvasElementType;
+  onUpdateElement: (id: string, updates: Partial<CanvasElementType>) => void;
+}
+
+export const VideoProperties: React.FC<VideoPropertiesProps> = ({ element, onUpdateElement }) => {
+  const handleChange = (key: string, value: any) => {
+    onUpdateElement(element.id, { [key]: value });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          onUpdateElement(element.id, { 
+            src: event.target.result as string,
+            duration: element.duration || 10 // Default duration if not set
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <>
+      <div>
+        <label className="block text-white/70 text-xs font-medium mb-1">Video Source</label>
+        <div className="flex items-center space-x-2">
+          <input
+            type="file"
+            accept="video/*"
+            onChange={handleFileChange}
+            className="hidden"
+            id={`video-upload-${element.id}`}
+          />
+          <label
+            htmlFor={`video-upload-${element.id}`}
+            className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-amber-400 cursor-pointer hover:bg-white/20 text-center"
+          >
+            Upload Video
+          </label>
+          {element.src && (
+            <button
+              onClick={() => handleChange('src', '')}
+              className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20"
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-white/70 text-xs font-medium mb-1">Video Width</label>
+        <input
+          type="number"
+          value={element.width || 640}
+          onChange={(e) => handleChange('width', Number(e.target.value))}
+          className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-amber-400"
+        />
+
+      </div>
+      <div>
+        <label className="block text-white/70 text-xs font-medium mb-1">Video Height</label>
+        <input
+          type="number"
+          value={element.height || 360}
+          onChange={(e) => handleChange('height', Number(e.target.value))}
+          className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-amber-400"
+        />
+      </div>
+
+      <div>
+        <label className="block text-white/70 text-xs font-medium mb-1">Duration (seconds)</label>
+        <input
+          type="number"
+          value={element.duration || 10}
+          onChange={(e) => handleChange('duration', Number(e.target.value))}
+          className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-amber-400"
+        />
+      </div>
+      
+      
+    </>
+  );
+};

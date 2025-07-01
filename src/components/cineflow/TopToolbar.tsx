@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Save, Download, Undo, Redo, Play, Pause, HelpCircle, ChevronDown, Edit, Check, X, Tag, FileText } from 'lucide-react';
 import { toast } from '../../contexts/ToastContext';
+import { AspectRatio, AspectRatioOption } from '@/types/cineflow';
 
 interface TopToolbarProps {
   projectName: string;
@@ -8,7 +9,7 @@ interface TopToolbarProps {
   canUndo: boolean;
   canRedo: boolean;
   aspectRatio: string;
-  onAspectRatioChange: (ratio: string) => void;
+  onAspectRatioChange: (ratio: AspectRatio) => void;
   onPlayPause: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -37,14 +38,30 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(projectName);
   const [editedDescription, setEditedDescription] = useState(projectDescription);
-  
-  const aspectRatios = [
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const aspectRatios: AspectRatioOption[] = [
     { value: '16:9', label: '16:9 - Landscape' },
     { value: '9:16', label: '9:16 - Portrait' },
     { value: '1:1', label: '1:1 - Square' },
     { value: '4:3', label: '4:3 - Classic' },
     { value: '21:9', label: '21:9 - Cinematic' }
   ];
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current &&
+        buttonRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        !buttonRef.current.contains(event.target as Node)) {
+        setShowAspectRatioDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleHelp = () => {
     toast.info('CineFlow Help', {
@@ -67,9 +84,11 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
     setIsEditing(false);
   };
 
-  return (
-    <div className="sticky top-0 z-50 bg-gray-900/90 border-b border-white/10">
-      <div className="flex items-center justify-between p-2 overflow-x-auto">
+return (
+  <div className="sticky top-0 z-50 bg-gray-900/90 border-b border-white/10 backdrop-blur-sm">
+    {/* Scrollable toolbar container */}
+    <div className="overflow-x-auto whitespace-nowrap scrollbar-hide">
+      <div className="inline-flex items-center justify-between p-2 w-full min-w-max">
         {/* Left section */}
         <div className="flex items-center space-x-3 flex-shrink-0">
           {isEditing ? (
@@ -109,11 +128,22 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
           ) : (
             <h2 className="text-white font-bold text-base truncate max-w-[120px] sm:max-w-[200px]">{projectName}</h2>
           )}
-          <div className="text-white/50 text-xs hidden sm:block">Autosaving...</div>
+
+          {!isEditing && (
+            <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3">
+              <div className="bg-white/10 rounded-lg px-1.5 py-1">
+                <span className="text-white text-xs sm:text-sm font-medium">
+                  {aspectRatio}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="text-white/50 text-xs hidden sm:block">Local Saving...</div>
         </div>
-        
+
         {/* Center section */}
-        <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
+        <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0 mx-2">
           <div className="flex items-center space-x-1 sm:space-x-2">
             <button
               onClick={onUndo}
@@ -132,9 +162,9 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
               <Redo className="w-3.5 h-3.5" />
             </button>
           </div>
-          
+
           <div className="h-4 border-l border-white/20 mx-1 hidden sm:block"></div>
-          
+
           <button
             onClick={onPlayPause}
             className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
@@ -142,40 +172,10 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
           >
             {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
           </button>
-          
+
           <div className="h-4 border-l border-white/20 mx-1 hidden sm:block"></div>
-          
-          {/* Aspect Ratio Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setShowAspectRatioDropdown(!showAspectRatioDropdown)}
-              className="flex items-center space-x-1 p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
-            >
-              <span className="text-xs font-medium">{aspectRatio}</span>
-              <ChevronDown className={`w-3 h-3 transition-transform ${showAspectRatioDropdown ? 'rotate-180' : ''}`} />
-            </button>
-            
-            {showAspectRatioDropdown && (
-              <div className="absolute top-full left-0 mt-1 bg-gray-900/95 border border-white/20 rounded-lg shadow-lg z-50">
-                {aspectRatios.map((ratio) => (
-                  <button
-                    key={ratio.value}
-                    onClick={() => {
-                      onAspectRatioChange(ratio.value);
-                      setShowAspectRatioDropdown(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-xs hover:bg-white/10 transition-colors ${
-                      aspectRatio === ratio.value ? 'bg-white/10 text-white' : 'text-white/70'
-                    }`}
-                  >
-                    {ratio.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
-        
+
         {/* Right section */}
         <div className="flex items-center space-x-2 flex-shrink-0">
           <button
@@ -186,7 +186,7 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
             <Save className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Save</span>
           </button>
-          
+
           <button
             onClick={onExport}
             className="flex items-center space-x-1 px-2 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-black font-semibold transition-colors hover:scale-105 text-xs"
@@ -195,7 +195,7 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
             <Download className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Export</span>
           </button>
-          
+
           <button
             onClick={handleHelp}
             className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors hidden sm:block"
@@ -205,43 +205,68 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
           </button>
         </div>
       </div>
-      
+    </div>
+
+    {/* Editing sections (non-scrollable) */}
+    <div className="space-y-2 px-2">
       {/* Project Description Section */}
-      <div className="px-2 py-1 border-t border-white/10">
-        {isEditing ? (
-          <div className="flex items-center space-x-2">
-            <FileText className="w-3.5 h-3.5 text-white/60" />
+      {isEditing && (
+        <div className="border-t border-white/10 pt-2">
+          <div className="flex items-start space-x-2">
+            <FileText className="w-3.5 h-3.5 text-white/60 mt-1 flex-shrink-0" />
             <textarea
               value={editedDescription}
               onChange={(e) => setEditedDescription(e.target.value)}
-              className="bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-white text-xs focus:outline-none focus:border-amber-400 resize-none flex-1"
+              className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-amber-400 resize-y w-full min-h-[40px]"
               placeholder="Project Description (optional)"
               rows={1}
             />
           </div>
-        ) : (
-          <div className="flex items-center space-x-2 overflow-hidden">
-            <FileText className="w-3.5 h-3.5 text-white/60 flex-shrink-0" />
-            <p className="text-white/60 text-xs truncate">
-              {projectDescription || "No description provided. Click the edit button to add one."}
-            </p>
-          </div>
-        )}
-      </div>
-      
-      {/* Tags Section (Optional) */}
+        </div>
+      )}
+
+      {/* Tags Section */}
       {isEditing && (
-        <div className="px-2 py-1 border-t border-white/10 flex items-center space-x-2">
-          <Tag className="w-3.5 h-3.5 text-white/60 flex-shrink-0" />
-          <input
-            type="text"
-            placeholder="Add tags separated by commas"
-            className="bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-white text-xs focus:outline-none focus:border-amber-400 flex-1"
-          />
+        <div className="border-t border-white/10 pt-2">
+          <div className="flex items-center space-x-2">
+            <Tag className="w-3.5 h-3.5 text-white/60 flex-shrink-0" />
+            <input
+              type="text"
+              placeholder="Add tags separated by commas"
+              className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-amber-400 w-full"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Aspect Ratio Dropdown */}
+      {isEditing && (
+        <div className="border-t border-white/10 pt-2">
+          <div className="relative group w-full sm:w-auto">
+            <button className="flex items-center justify-between w-full sm:w-auto space-x-2 p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors">
+              <span className="text-xs font-medium">Aspect Ratio: {aspectRatio}</span>
+              <ChevronDown className="w-3 h-3 flex-shrink-0" />
+            </button>
+
+            <div className="absolute left-0 right-0 sm:right-auto mt-1 hidden group-hover:block bg-gray-900 border border-white/20 rounded-lg shadow-lg z-50 min-w-[160px]">
+              {aspectRatios.map((ratio) => (
+                <button
+                  key={ratio.value}
+                  onClick={() => onAspectRatioChange(ratio.value)}
+                  className={`w-full text-left px-4 py-2 text-xs hover:bg-white/10 transition-colors ${
+                    aspectRatio === ratio.value ? 'bg-white/10 text-white' : 'text-white/70'
+                  }`}
+                >
+                  {ratio.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
-  );
+  </div>
+);
 };
 
 export default TopToolbar;

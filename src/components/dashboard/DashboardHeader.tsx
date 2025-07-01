@@ -132,7 +132,7 @@ export default function DashboardHeader({ setIsMobileOpen }: DashboardHeaderProp
 
             {/* Notification Dropdown */}
             {isNotificationOpen && (
-              <div className="absolute top-full right-0 mt-1 w-80 bg-gradient-to-br from-gray-900/95 to-black/95 backdrop-blur-xl border border-white/20 rounded-lg shadow-xl p-2 z-50">
+              <div className="z-99 absolute top-full right-0 mt-1 w-80 bg-gradient-to-br from-gray-900/95 to-black/95 backdrop-blur-xl border border-white/20 rounded-lg shadow-xl p-2 z-50">
                 <div className="flex items-center justify-between p-2 border-b border-white/10">
                   <h3 className="text-white font-bold text-sm">Notifications</h3>
                   <div className="flex items-center space-x-2">

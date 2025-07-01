@@ -260,12 +260,7 @@ export default function DashboardSidebar({
         `}
         aria-expanded={!isCollapsed}
         aria-controls="sidebar-content"
-      >
-        {/* Background Elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-10 left-4 w-16 h-16 bg-purple-600/10 rounded-full blur-xl animate-pulse"></div>
-          <div className="absolute bottom-20 right-4 w-20 h-20 bg-pink-600/8 rounded-full blur-xl animate-pulse delay-1000"></div>
-        </div>
+      > 
 
         <div className="relative z-10 flex flex-col h-full">
           {/* Header */}

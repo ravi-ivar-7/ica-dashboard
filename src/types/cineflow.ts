@@ -1,5 +1,13 @@
 // Types for CineFlow editor
 
+export type AspectRatio = '16:9' | '9:16' | '1:1' | '4:3' | '21:9';
+
+export interface AspectRatioOption {
+  value: AspectRatio;
+  label: string;
+}
+
+
 export interface CanvasElementType {
   id: string;
   type: 'image' | 'video' | 'audio' | 'text' | 'element';
@@ -29,8 +37,9 @@ export interface CanvasElementType {
 export interface CineFlowProject {
   id: string;
   name: string;
-  type: 'Reel' | 'Trailer' | 'Montage' | 'Custom';
-  aspectRatio: '16:9' | '9:16' | '1:1';
+  description: string;
+  status: 'draft' | 'published' | 'archived';
+  aspectRatio:AspectRatio;
   duration: number;
   elements: CanvasElementType[];
   createdAt: string;
@@ -43,7 +52,7 @@ export interface Template {
   id: string;
   name: string;
   thumbnail: string;
-  aspectRatio: '16:9' | '9:16' | '1:1';
+  aspectRatio: AspectRatio;
   duration: number;
   elements: CanvasElementType[];
   tags: string[];
@@ -76,3 +85,4 @@ export interface Element {
   src: string;
   type: 'element';
 }
+

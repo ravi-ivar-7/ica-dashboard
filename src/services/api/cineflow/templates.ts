@@ -1,15 +1,13 @@
-import {  Template, Element, TextStyle } from '../types/cineflow';
+import type { Template } from '@/types/cineflow';
 
- 
-
-// Mock templates
-export const mockTemplates: Template[] = [
+const fallbackTemplates: Template[] = [
   {
     id: 'template1',
     name: 'Product Showcase',
     thumbnail: 'https://images.pexels.com/photos/196644/pexels-photo-196644.jpeg?auto=compress&cs=tinysrgb&w=600',
     aspectRatio: '16:9',
     duration: 30,
+    tags: ['product', 'business', 'showcase'],
     elements: [
       {
         id: 'template1-el1',
@@ -42,8 +40,7 @@ export const mockTemplates: Template[] = [
         color: '#ffffff',
         textAlign: 'center'
       }
-    ],
-    tags: ['product', 'business', 'showcase']
+    ]
   },
   {
     id: 'template2',
@@ -51,6 +48,7 @@ export const mockTemplates: Template[] = [
     thumbnail: 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=600',
     aspectRatio: '16:9',
     duration: 45,
+    tags: ['travel', 'montage', 'adventure'],
     elements: [
       {
         id: 'template2-el1',
@@ -68,8 +66,7 @@ export const mockTemplates: Template[] = [
         color: '#ffffff',
         textAlign: 'center'
       }
-    ],
-    tags: ['travel', 'montage', 'adventure']
+    ]
   },
   {
     id: 'template3',
@@ -77,6 +74,7 @@ export const mockTemplates: Template[] = [
     thumbnail: 'https://images.pexels.com/photos/3184338/pexels-photo-3184338.jpeg?auto=compress&cs=tinysrgb&w=600',
     aspectRatio: '9:16',
     duration: 15,
+    tags: ['social', 'story', 'vertical'],
     elements: [
       {
         id: 'template3-el1',
@@ -94,8 +92,7 @@ export const mockTemplates: Template[] = [
         color: '#ffffff',
         textAlign: 'center'
       }
-    ],
-    tags: ['social', 'story', 'vertical']
+    ]
   },
   {
     id: 'template4',
@@ -103,6 +100,7 @@ export const mockTemplates: Template[] = [
     thumbnail: 'https://images.pexels.com/photos/3184339/pexels-photo-3184339.jpeg?auto=compress&cs=tinysrgb&w=600',
     aspectRatio: '16:9',
     duration: 20,
+    tags: ['corporate', 'business', 'intro'],
     elements: [
       {
         id: 'template4-el1',
@@ -120,104 +118,19 @@ export const mockTemplates: Template[] = [
         color: '#ffffff',
         textAlign: 'center'
       }
-    ],
-    tags: ['corporate', 'business', 'intro']
+    ]
   }
 ];
 
-// Mock elements (stickers, shapes, etc.)
-export const mockElements: Element[] = [
-  {
-    id: 'element1',
-    name: 'Star',
-    src: 'https://cdn-icons-png.flaticon.com/512/1828/1828884.png',
-    type: 'element'
-  },
-  {
-    id: 'element2',
-    name: 'Heart',
-    src: 'https://cdn-icons-png.flaticon.com/512/833/833472.png',
-    type: 'element'
-  },
-  {
-    id: 'element3',
-    name: 'Arrow',
-    src: 'https://cdn-icons-png.flaticon.com/512/2989/2989981.png',
-    type: 'element'
-  },
-  {
-    id: 'element4',
-    name: 'Circle',
-    src: 'https://cdn-icons-png.flaticon.com/512/481/481662.png',
-    type: 'element'
-  },
-  {
-    id: 'element5',
-    name: 'Square',
-    src: 'https://cdn-icons-png.flaticon.com/512/33/33714.png',
-    type: 'element'
-  },
-  {
-    id: 'element6',
-    name: 'Triangle',
-    src: 'https://cdn-icons-png.flaticon.com/512/649/649738.png',
-    type: 'element'
+export const getTemplates = async (): Promise<Template[]> => {
+  try {
+    const res = await fetch('/api/templates');
+    if (!res.ok) throw new Error('Network response was not ok');
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) return fallbackTemplates;
+    return data;
+  } catch (err) {
+    console.error('[Templates API] Fallback to mock data:', err);
+    return fallbackTemplates;
   }
-];
-
-// Mock text styles
-export const mockTextStyles: TextStyle[] = [
-  {
-    id: 'text1',
-    name: 'Heading',
-    style: {
-      fontFamily: 'sans-serif',
-      fontSize: 48,
-      fontWeight: 'bold',
-      color: '#ffffff',
-      textAlign: 'center'
-    }
-  },
-  {
-    id: 'text2',
-    name: 'Subheading',
-    style: {
-      fontFamily: 'sans-serif',
-      fontSize: 32,
-      fontWeight: 'bold',
-      color: '#ffffff',
-      textAlign: 'center'
-    }
-  },
-  {
-    id: 'text3',
-    name: 'Body Text',
-    style: {
-      fontFamily: 'sans-serif',
-      fontSize: 24,
-      color: '#ffffff',
-      textAlign: 'left'
-    }
-  },
-  {
-    id: 'text4',
-    name: 'Caption',
-    style: {
-      fontFamily: 'sans-serif',
-      fontSize: 16,
-      color: '#ffffff',
-      textAlign: 'center'
-    }
-  },
-  {
-    id: 'text5',
-    name: 'Title - Fancy',
-    style: {
-      fontFamily: 'cursive',
-      fontSize: 64,
-      fontWeight: 'bold',
-      color: '#ffcc00',
-      textAlign: 'center'
-    }
-  }
-];
+};

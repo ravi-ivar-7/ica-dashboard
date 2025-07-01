@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Film, Plus, Search, Filter, Grid, List, X, Check, ChevronRight, Zap, Sparkles } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Film, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ErrorBoundary from '../../../components/dashboard/ErrorBoundary';
 import { toast } from '../../../contexts/ToastContext';
-
+import { CineFlowProject } from '@/types/cineflow';
+import { getAllProjects } from '@/services/api/projects';
 // Import section components
 import StatsSection from './sections/StatsSection';
 import SearchFilterBar from './sections/SearchFilterBar';
@@ -11,63 +12,30 @@ import EmptyState from './sections/EmptyState';
 import ProjectCard from './sections/ProjectCard';
 import NewProjectModal from './sections/NewProjectModal';
 
-// Mock data for CineFlow projects
-const mockProjects = [
-  {
-    id: 'cf1',
-    name: 'Summer Vacation Highlights',
-    thumbnail: 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop',
-    type: 'Montage',
-    aspectRatio: '16:9',
-    duration: '00:01:45',
-    lastEdited: '2 hours ago',
-    status: 'draft',
-    tags: ['vacation', 'summer', 'family']
-  },
-  {
-    id: 'cf2',
-    name: 'Product Launch Teaser',
-    thumbnail: 'https://images.pexels.com/photos/196644/pexels-photo-196644.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop',
-    type: 'Trailer',
-    aspectRatio: '16:9',
-    duration: '00:00:30',
-    lastEdited: '1 day ago',
-    status: 'completed',
-    tags: ['product', 'business', 'promo']
-  },
-  {
-    id: 'cf3',
-    name: 'Instagram Story Collection',
-    thumbnail: 'https://images.pexels.com/photos/3184338/pexels-photo-3184338.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop',
-    type: 'Reel',
-    aspectRatio: '9:16',
-    duration: '00:00:15',
-    lastEdited: '3 days ago',
-    status: 'draft',
-    tags: ['instagram', 'social', 'vertical']
-  },
-  {
-    id: 'cf4',
-    name: 'Brand Intro Video',
-    thumbnail: 'https://images.pexels.com/photos/3184339/pexels-photo-3184339.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop',
-    type: 'Custom',
-    aspectRatio: '16:9',
-    duration: '00:00:45',
-    lastEdited: '1 week ago',
-    status: 'completed',
-    tags: ['brand', 'intro', 'corporate']
-  }
-];
 
 export default function CineFlowHome() {
   const navigate = useNavigate();
-  const [projects, setProjects] = useState(mockProjects);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
 
+
+  const [projects, setProjects] = useState<CineFlowProject[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const result = await getAllProjects();
+        setProjects(result);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    load();
+  }, []);
+
   // Filter projects based on search
-  const filteredProjects = projects.filter(project => 
+  const filteredProjects = projects.filter(project =>
     project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     project.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
   );
@@ -79,24 +47,31 @@ export default function CineFlowHome() {
       return;
     }
 
-    const newProject = {
+
+    const newProject: CineFlowProject = {
       id: `cf${Date.now()}`,
       name: formData.name,
       thumbnail: 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop',
-      type: formData.type,
-      aspectRatio: formData.aspectRatio,
-      duration: '00:00:00',
-      lastEdited: 'Just now',
+      description: formData.description,
+      aspectRatio: formData.aspectRatio as '16:9' | '9:16' | '1:1' | '4:3' | '21:9',
+      duration: 0, // in seconds
       status: 'draft',
+      elements: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       tags: formData.tags
     };
 
+
     setProjects([newProject, ...projects]);
     setShowNewProjectModal(false);
-    
+
     // Navigate to editor
-    navigate(`/dashboard/cineflow/editor/${newProject.id}`);
-    
+    navigate(`/dashboard/cineflow/editor/${newProject.id}`, {
+      state: { project: newProject }
+    });
+
+
     toast.success('New CineFlow project created', {
       subtext: 'Opening editor...',
       duration: 3000
@@ -110,9 +85,13 @@ export default function CineFlowHome() {
   };
 
   // Handle opening a project in the editor
-  const handleOpenProject = (id: string) => {
-    navigate(`/dashboard/cineflow/editor/${id}`);
+  const handleOpenProject = (project: CineFlowProject) => {
+    navigate(`/dashboard/cineflow/editor/${project.id}`, {
+      state: { project }
+    });
   };
+
+
 
   return (
     <ErrorBoundary>
@@ -128,9 +107,9 @@ export default function CineFlowHome() {
               Create cinematic videos with our timeline editor
             </p>
           </div>
-          
+
           <div className="mt-4 lg:mt-0 flex flex-wrap gap-3">
-            <button 
+            <button
               onClick={() => setShowNewProjectModal(true)}
               className="bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-black font-black px-6 py-2.5 rounded-xl hover:scale-105 transition-all duration-300 shadow-lg flex items-center space-x-2 text-base"
             >
@@ -144,33 +123,34 @@ export default function CineFlowHome() {
         <StatsSection projects={projects} />
 
         {/* Search and View Options */}
-        <SearchFilterBar 
+        <SearchFilterBar
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           viewMode={viewMode}
           setViewMode={setViewMode}
         />
-        
+
         {/* Projects Grid/List */}
         <div className="bg-gradient-to-br from-gray-900/80 to-black/90 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-lg">
           {filteredProjects.length === 0 ? (
-            <EmptyState 
-              searchQuery={searchQuery} 
-              onCreateNew={() => setShowNewProjectModal(true)} 
+            <EmptyState
+              searchQuery={searchQuery}
+              onCreateNew={() => setShowNewProjectModal(true)}
             />
           ) : (
-            <div className={viewMode === 'grid' 
-              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" 
+            <div className={viewMode === 'grid'
+              ? "grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-6"
               : "space-y-4"
             }>
               {filteredProjects.map((project) => (
-                <ProjectCard 
+                <ProjectCard
                   key={project.id}
                   project={project}
                   viewMode={viewMode}
-                  handleOpenProject={handleOpenProject}
+                  handleOpenProject={() => handleOpenProject(project)}
                   handleDeleteProject={handleDeleteProject}
                 />
+
               ))}
             </div>
           )}
@@ -178,7 +158,7 @@ export default function CineFlowHome() {
       </div>
 
       {/* New Project Modal */}
-      <NewProjectModal 
+      <NewProjectModal
         isOpen={showNewProjectModal}
         onClose={() => setShowNewProjectModal(false)}
         onCreateProject={handleCreateProject}
