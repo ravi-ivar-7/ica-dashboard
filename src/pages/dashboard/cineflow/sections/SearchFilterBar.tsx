@@ -15,7 +15,7 @@ export default function SearchFilterBar({
   setViewMode 
 }: SearchFilterBarProps) {
   return (
-    <div className="bg-gradient-to-br from-gray-900/80 to-black/90 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-lg">
+    <div className="bg-gradient-to-br from-gray-900/80 to-black/90 backdrop-blur-xl border border-white/20 rounded-3xl p-4 shadow-lg">
       <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />

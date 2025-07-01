@@ -7,10 +7,11 @@ export interface AssetItemProps {
   name: string;
   src: string;
   duration?: string;
+  poster?: string;
   onDragStart: (e: React.DragEvent, asset: any) => void;
 }
 
-const AssetItem: React.FC<AssetItemProps> = ({ id, type, name, src, duration, onDragStart }) => {
+const AssetItem: React.FC<AssetItemProps> = ({ id, type, name, src, duration, onDragStart, poster }) => {
   const getIcon = () => {
     switch (type) {
       case 'image':
@@ -30,18 +31,18 @@ const AssetItem: React.FC<AssetItemProps> = ({ id, type, name, src, duration, on
 
   const handleDragStart = (e: React.DragEvent) => {
     const asset = { id, type, name, src, duration };
-    
+
     // Set the drag data
     e.dataTransfer.setData('application/json', JSON.stringify(asset));
     onDragStart(e, asset);
-    
+
     // Set a drag image using the native Image constructor
     if (type === 'image' || type === 'video') {
       const img = new window.Image();
       img.src = src;
       e.dataTransfer.setDragImage(img, 0, 0);
     }
-    
+
     e.dataTransfer.effectAllowed = 'copy';
   };
 
@@ -64,14 +65,19 @@ const AssetItem: React.FC<AssetItemProps> = ({ id, type, name, src, duration, on
       <div className="flex items-center space-x-2">
         {type === 'image' || type === 'video' ? (
           <div className="w-10 h-10 rounded-md overflow-hidden bg-black/30 flex-shrink-0">
-            <img src={src} alt={name} className="w-full h-full object-cover" />
+            <img
+              src={type === 'video' ? poster || src : src}
+              alt={name}
+              className="w-full h-full object-cover"
+            />
           </div>
         ) : (
           <div className="w-10 h-10 rounded-md bg-black/30 flex items-center justify-center flex-shrink-0">
             {getIcon()}
           </div>
         )}
-        
+
+
         <div className="flex-1 min-w-0">
           <p className="text-white text-xs font-medium truncate">{name}</p>
           <div className="flex items-center text-white/50 text-xs">

@@ -46,7 +46,8 @@ const Canvas: React.FC<CanvasProps> = ({
   const [startSize, setStartSize] = useState({ width: 0, height: 0 });
 
   // New enhancement states
-  const [backgroundColor, setBackgroundColor] = useState('#000000');
+const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
+
   const [showGrid, setShowGrid] = useState(false);
   const [snapToGrid, setSnapToGrid] = useState(false);
   const [gridSize] = useState(20); // Reduced for finer grid

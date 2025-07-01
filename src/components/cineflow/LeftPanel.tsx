@@ -337,6 +337,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
                   src={asset.src}
                   duration={asset.duration}
                   onDragStart={onAssetDragStart}
+                  poster={asset.poster}
                 />
               ))}
             </div>

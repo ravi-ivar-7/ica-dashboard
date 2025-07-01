@@ -77,6 +77,7 @@ export interface Asset {
   name: string;
   src: string;
   duration?: string;
+  poster?:string;
 }
 
 export interface Element {

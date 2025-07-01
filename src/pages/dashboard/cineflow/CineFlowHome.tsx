@@ -95,9 +95,9 @@ export default function CineFlowHome() {
 
   return (
     <ErrorBoundary>
-      <div className="space-y-6">
+      <div className="space-y-6 p-2 md:p-4">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between bg-gradient-to-br from-gray-900/80 to-black/90 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-lg">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between bg-gradient-to-br from-gray-900/80 to-black/90 backdrop-blur-xl border border-white/20 rounded-3xl p-4 shadow-lg">
           <div>
             <h1 className="text-3xl font-black text-white mb-2 flex items-center">
               <Film className="w-8 h-8 mr-3 text-amber-400" />
@@ -131,7 +131,7 @@ export default function CineFlowHome() {
         />
 
         {/* Projects Grid/List */}
-        <div className="bg-gradient-to-br from-gray-900/80 to-black/90 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-lg">
+        <div className="bg-gradient-to-br from-gray-900/80 to-black/90 backdrop-blur-xl border border-white/20 rounded-3xl p-4 shadow-lg">
           {filteredProjects.length === 0 ? (
             <EmptyState
               searchQuery={searchQuery}
