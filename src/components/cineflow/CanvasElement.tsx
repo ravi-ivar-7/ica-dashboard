@@ -33,6 +33,12 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  // Touch-specific state
+  const [touchStartPos, setTouchStartPos] = useState({ x: 0, y: 0 });
+  const [touchStartSize, setTouchStartSize] = useState({ width: 0, height: 0 });
+  const [touchStartElementPos, setTouchStartElementPos] = useState({ x: 0, y: 0 });
+  const [showPositionBar, setShowPositionBar] = useState(false);
+
   // Handle element selection
   const handleSelect = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -89,6 +95,60 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
     setStartPosition({ x: element.x, y: element.y });
   };
 
+  // Touch handlers for main element (moving only)
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // Don't handle touch if we're already resizing or if not selected
+    if (isResizing || !isSelected || e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    setTouchStartPos({ x: touch.clientX, y: touch.clientY });
+    setTouchStartElementPos({ x: element.x, y: element.y });
+    setIsMoving(true);
+    setShowPositionBar(true);
+    e.stopPropagation();
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1 && isSelected && isMoving && !isResizing) {
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - touchStartPos.x;
+      const deltaY = touch.clientY - touchStartPos.y;
+
+      // Calculate new position
+      const newX = touchStartElementPos.x + deltaX;
+      const newY = touchStartElementPos.y + deltaY;
+
+      onUpdate(element.id, {
+        x: newX,
+        y: newY
+      });
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (isMoving && !isResizing) {
+      setIsMoving(false);
+      setShowPositionBar(false);
+    }
+  };
+
+  // Touch handlers for resize handles
+  const handleResizeTouchStart = (e: React.TouchEvent, direction: string) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      setTouchStartPos({ x: touch.clientX, y: touch.clientY });
+      setTouchStartElementPos({ x: element.x, y: element.y });
+      setTouchStartSize({ width: element.width, height: element.height });
+      setResizeDirection(direction);
+      setIsResizing(true);
+      setShowPositionBar(true);
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  };
+
   // Handle mouse move for both resizing and moving
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -123,7 +183,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
           x: newX,
           y: newY
         });
-      } else if (isMoving) {
+      } else if (isMoving && !isResizing) {
         const deltaX = e.clientX - startPos.x;
         const deltaY = e.clientY - startPos.y;
 
@@ -154,6 +214,61 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isResizing, isMoving, startPos, startSize, startPosition, element.id, element.width, element.height, element.x, element.y, onUpdate, resizeDirection]);
+
+  // Handle global touch events for resizing
+  useEffect(() => {
+    const handleTouchMoveGlobal = (e: TouchEvent) => {
+      if (isResizing && resizeDirection && e.touches.length === 1) {
+        const touch = e.touches[0];
+        const deltaX = touch.clientX - touchStartPos.x;
+        const deltaY = touch.clientY - touchStartPos.y;
+
+        // Calculate new width, height, and position based on resize direction
+        let newWidth = element.width;
+        let newHeight = element.height;
+        let newX = element.x;
+        let newY = element.y;
+
+        if (resizeDirection.includes('right')) {
+          newWidth = Math.max(50, touchStartSize.width + deltaX);
+        } else if (resizeDirection.includes('left')) {
+          newWidth = Math.max(50, touchStartSize.width - deltaX);
+          newX = touchStartElementPos.x + (touchStartSize.width - newWidth);
+        }
+
+        if (resizeDirection.includes('bottom')) {
+          newHeight = Math.max(50, touchStartSize.height + deltaY);
+        } else if (resizeDirection.includes('top')) {
+          newHeight = Math.max(50, touchStartSize.height - deltaY);
+          newY = touchStartElementPos.y + (touchStartSize.height - newHeight);
+        }
+        onUpdate(element.id, {
+          width: newWidth,
+          height: newHeight,
+          x: newX,
+          y: newY
+        });
+        e.preventDefault();
+      }
+    };
+
+    const handleTouchEndGlobal = () => {
+      setIsResizing(false);
+      setIsMoving(false);
+      setResizeDirection(null);
+      setShowPositionBar(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('touchmove', handleTouchMoveGlobal, { passive: false });
+      document.addEventListener('touchend', handleTouchEndGlobal);
+    }
+
+    return () => {
+      document.removeEventListener('touchmove', handleTouchMoveGlobal);
+      document.removeEventListener('touchend', handleTouchEndGlobal);
+    };
+  }, [isResizing, touchStartPos, touchStartSize, touchStartElementPos, element.id, onUpdate, resizeDirection, element.width, element.height, element.x, element.y]);
 
   // Control video playback based on isPlaying state
   useEffect(() => {
@@ -328,79 +443,108 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
             crossOrigin="anonymous"
             referrerPolicy="no-referrer"
           />
-
         );
       default:
         return <div className="w-full h-full bg-gray-500/30"></div>;
     }
   };
 
-  return (
-    <div
-      ref={elementRef}
-      className={`absolute transition-opacity duration-200 animate-fade-in ${isSelected ? 'z-10' : 'z-0'}`}
-      style={{
-        left: `${element.x}px`,
-        top: `${element.y}px`,
-        width: `${element.width}px`,
-        height: `${element.height}px`,
-        transform: `rotate(${element.rotation || 0}deg)`,
-        opacity: isVisible ? (element.opacity || 1) : (isSelected ? 0.5 : 0),
-        pointerEvents: isVisible || isSelected ? 'auto' : 'none',
-        zIndex: element.layer || 0,
-        display: (!isVisible && !isSelected) ? 'none' : 'block'
-      }}
-      onClick={handleSelect}
-      onMouseDown={handleMoveStart}
-    >
-      {/* Element content */}
-      <div className="w-full h-full overflow-hidden">
-        {renderElement()}
+  // Position info bar component
+  const PositionInfoBar = () => {
+    if (!showPositionBar || !isSelected) return null;
+
+    return (
+      <div className="fixed -top-12 left-0   mx-auto bg-black/80 text-white text-xs p-1   z-50">
+        <div className="grid grid-cols-2 gap-1">
+          <span>X: {Math.round(element.x)}</span>
+          <span>Y: {Math.round(element.y)}</span>
+          <span>W: {Math.round(element.width)}</span>
+          <span>H: {Math.round(element.height)}</span>
+        </div>
       </div>
+    );
+  };
 
-      {/* Selection border and resize handles */}
-      {isSelected && (
-        <>
-          <div className="absolute inset-0 border-2 border-amber-500 pointer-events-none"></div>
+  return (
+    <>
+      <PositionInfoBar />
+      <div
+        ref={elementRef}
+        className={`absolute transition-opacity duration-200 animate-fade-in ${isSelected ? 'z-10' : 'z-0'}`}
+        style={{
+          left: `${element.x}px`,
+          top: `${element.y}px`,
+          width: `${element.width}px`,
+          height: `${element.height}px`,
+          transform: `rotate(${element.rotation || 0}deg)`,
+          opacity: isVisible ? (element.opacity || 1) : (isSelected ? 0.5 : 0),
+          pointerEvents: isVisible || isSelected ? 'auto' : 'none',
+          zIndex: element.layer || 0,
+          display: (!isVisible && !isSelected) ? 'none' : 'block'
+        }}
+        onClick={handleSelect}
+        onMouseDown={handleMoveStart}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Element content */}
+        <div className="w-full h-full overflow-hidden">
+          {renderElement()}
+        </div>
 
-          {/* Corner resize handles */}
-          <div
-            className="absolute top-0 left-0 w-2 h-2 bg-amber-500/50  cursor-nwse-resize -translate-x-1/2 -translate-y-1/2"
-            onMouseDown={(e) => handleResizeStart(e, 'left-top')}
-          ></div>
-          <div
-            className="absolute top-0 right-0 w-2 h-2 bg-amber-500/50 cursor-nesw-resize translate-x-1/2 -translate-y-1/2"
-            onMouseDown={(e) => handleResizeStart(e, 'right-top')}
-          ></div>
-          <div
-            className="absolute bottom-0 left-0 w-2 h-2 bg-amber-500/50 cursor-nesw-resize -translate-x-1/2 translate-y-1/2"
-            onMouseDown={(e) => handleResizeStart(e, 'left-bottom')}
-          ></div>
-          <div
-            className="absolute bottom-0 right-0 w-2 h-2 bg-amber-500/50 cursor-nwse-resize translate-x-1/2 translate-y-1/2"
-            onMouseDown={(e) => handleResizeStart(e, 'right-bottom')}
-          ></div>
+        {/* Selection border and resize handles */}
+        {isSelected && (
+          <>
+            <div className="absolute inset-0 border border-amber-500 pointer-events-none"></div>
 
-          {/* Edge resize handles */}
-          <div
-            className="absolute top-0 left-1/2 w-3 h-2 bg-amber-500/50 cursor-ns-resize -translate-x-1/2 -translate-y-1/2"
-            onMouseDown={(e) => handleResizeStart(e, 'top')}
-          ></div>
-          <div
-            className="absolute right-0 top-1/2 w-2 h-3 bg-amber-500/50 cursor-ew-resize translate-x-1/2 -translate-y-1/2"
-            onMouseDown={(e) => handleResizeStart(e, 'right')}
-          ></div>
-          <div
-            className="absolute bottom-0 left-1/2 w-3 h-2 bg-amber-500/50 cursor-ns-resize -translate-x-1/2 translate-y-1/2"
-            onMouseDown={(e) => handleResizeStart(e, 'bottom')}
-          ></div>
-          <div
-            className="absolute left-0 top-1/2 w-2 h-3 bg-amber-500/50 cursor-ew-resize -translate-x-1/2 -translate-y-1/2"
-            onMouseDown={(e) => handleResizeStart(e, 'left')}
-          ></div>
-        </>
-      )}
-    </div>
+            {/* Corner resize handles */}
+            <div
+              className="absolute top-0 left-0 w-3 h-3 bg-amber-500 cursor-nwse-resize -translate-x-1/2 -translate-y-1/2 touch-none"
+              onMouseDown={(e) => handleResizeStart(e, 'left-top')}
+              onTouchStart={(e) => handleResizeTouchStart(e, 'left-top')}
+            ></div>
+            <div
+              className="absolute top-0 right-0 w-3 h-3 bg-amber-500 cursor-nesw-resize translate-x-1/2 -translate-y-1/2 touch-none"
+              onMouseDown={(e) => handleResizeStart(e, 'right-top')}
+              onTouchStart={(e) => handleResizeTouchStart(e, 'right-top')}
+            ></div>
+            <div
+              className="absolute bottom-0 left-0 w-3 h-3 bg-amber-500 cursor-nesw-resize -translate-x-1/2 translate-y-1/2 touch-none"
+              onMouseDown={(e) => handleResizeStart(e, 'left-bottom')}
+              onTouchStart={(e) => handleResizeTouchStart(e, 'left-bottom')}
+            ></div>
+            <div
+              className="absolute bottom-0 right-0 w-3 h-3 bg-amber-500 cursor-nwse-resize translate-x-1/2 translate-y-1/2 touch-none"
+              onMouseDown={(e) => handleResizeStart(e, 'right-bottom')}
+              onTouchStart={(e) => handleResizeTouchStart(e, 'right-bottom')}
+            ></div>
+
+            {/* Edge resize handles */}
+            <div
+              className="absolute top-0 left-1/2 w-4 h-2 bg-amber-500 cursor-ns-resize -translate-x-1/2 -translate-y-1/2 touch-none"
+              onMouseDown={(e) => handleResizeStart(e, 'top')}
+              onTouchStart={(e) => handleResizeTouchStart(e, 'top')}
+            ></div>
+            <div
+              className="absolute right-0 top-1/2 w-2 h-4 bg-amber-500 cursor-ew-resize translate-x-1/2 -translate-y-1/2 touch-none"
+              onMouseDown={(e) => handleResizeStart(e, 'right')}
+              onTouchStart={(e) => handleResizeTouchStart(e, 'right')}
+            ></div>
+            <div
+              className="absolute bottom-0 left-1/2 w-4 h-2 bg-amber-500 cursor-ns-resize -translate-x-1/2 translate-y-1/2 touch-none"
+              onMouseDown={(e) => handleResizeStart(e, 'bottom')}
+              onTouchStart={(e) => handleResizeTouchStart(e, 'bottom')}
+            ></div>
+            <div
+              className="absolute left-0 top-1/2 w-2 h-4 bg-amber-500 cursor-ew-resize -translate-x-1/2 -translate-y-1/2 touch-none"
+              onMouseDown={(e) => handleResizeStart(e, 'left')}
+              onTouchStart={(e) => handleResizeTouchStart(e, 'left')}
+            ></div>
+          </>
+        )}
+      </div>
+    </>
   );
 };
 

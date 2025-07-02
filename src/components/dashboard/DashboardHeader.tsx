@@ -70,7 +70,7 @@ export default function DashboardHeader({ setIsMobileOpen }: DashboardHeaderProp
   ];
 
   return (
-    <header className="sticky top-0 z-30 bg-gray-900/80 border-white/20 backdrop-blur-xl border-b shadow-md">
+    <header className="sticky top-0 z-50 bg-gray-900/80 border-white/20 backdrop-blur-xl border-b shadow-md">
       <div className="flex items-center justify-between px-2 sm:px-4 py-2">
         {/* Left Section */}
         <div className="flex items-center space-x-2">

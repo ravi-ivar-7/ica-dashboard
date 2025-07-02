@@ -62,8 +62,8 @@ const Canvas: React.FC<CanvasProps> = ({
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-  const [controlsExpanded, setControlsExpanded] = useState(false);
-
+  const [controlsExpanded, setControlsExpanded] = useState(false); 
+  
   // Base canvas dimensions (logical dimensions)
   const BASE_WIDTH = 1920;
   const BASE_HEIGHT = 1080;
@@ -148,7 +148,7 @@ const Canvas: React.FC<CanvasProps> = ({
 
       if (!canvasRef.current) return;
 
-      onDropAsset(asset, { x: canvasSize.width/3, y: canvasSize.height/3 });
+      onDropAsset(asset, { x: canvasSize.width / 3, y: canvasSize.height / 3 });
     };
 
     document.addEventListener('asset-double-clicked', handleAssetDoubleClick);
@@ -209,23 +209,23 @@ const Canvas: React.FC<CanvasProps> = ({
   // Convert screen coordinates to logical canvas coordinates
   const screenToLogical = useCallback((screenX: number, screenY: number) => {
     if (!canvasRef.current) return { x: 0, y: 0 };
-    
+
     const canvasRect = canvasRef.current.getBoundingClientRect();
-    
+
     // Get position relative to canvas
     const relativeX = screenX - canvasRect.left;
     const relativeY = screenY - canvasRect.top;
-    
+
     // Account for zoom and pan
     const adjustedX = (relativeX / zoom) - (panOffset.x / zoom);
     const adjustedY = (relativeY / zoom) - (panOffset.y / zoom);
-    
+
     // Convert from display coordinates to logical coordinates
     const logicalX = adjustedX / scale;
     const logicalY = adjustedY / scale;
-    
-    
-    
+
+
+
     return { x: logicalX, y: logicalY };
   }, [scale, zoom, panOffset]);
 
@@ -243,10 +243,9 @@ const Canvas: React.FC<CanvasProps> = ({
       setPanStart({ x: e.clientX, y: e.clientY });
     }
   };
- 
+
   // Handle drag over (prevent default to allow drop)
   const handleDragOver = (e: React.DragEvent) => {
-    console.log('📋 handleDragOver called');
     e.preventDefault();
     e.stopPropagation();
     e.dataTransfer.dropEffect = 'copy';
@@ -274,18 +273,18 @@ const Canvas: React.FC<CanvasProps> = ({
 
       // Convert mouse position to logical coordinates
       const logicalPosition = screenToLogical(e.clientX, e.clientY);
-      
+
       // Apply snap to grid if enabled
       const finalX = (snapToGrid && showGrid) ? snapToGridIfEnabled(logicalPosition.x) : logicalPosition.x;
       const finalY = (snapToGrid && showGrid) ? snapToGridIfEnabled(logicalPosition.y) : logicalPosition.y;
-      
+
       // Clamp to canvas bounds (assuming default element size)
       const elementWidth = 300; // Default width, adjust as needed
       const elementHeight = 200; // Default height, adjust as needed
-      
+
       const clampedX = Math.max(0, Math.min(finalX, BASE_WIDTH - elementWidth));
       const clampedY = Math.max(0, Math.min(finalY, BASE_HEIGHT - elementHeight));
-      
+
       onDropAsset(assetData, { x: clampedX, y: clampedY });
     } catch (error) {
       console.error('Error parsing dropped asset:', error);
@@ -381,12 +380,80 @@ const Canvas: React.FC<CanvasProps> = ({
       </svg>
     );
   };
+  // Add these new state variables to the Canvas component
+  const [touchStartPos, setTouchStartPos] = useState({ x: 0, y: 0 });
+  const [touchStartDistance, setTouchStartDistance] = useState(0);
+  const [isPinching, setIsPinching] = useState(false);
+  const [lastTouchTime, setLastTouchTime] = useState(0);
 
+  // Add these touch handlers to the Canvas component
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      // Single touch
+      setTouchStartPos({
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY
+      });
+
+      // Check for double tap to reset view
+      const currentTime = new Date().getTime();
+      const tapLength = currentTime - lastTouchTime;
+      if (tapLength < 300 && tapLength > 0) {
+        resetView();
+      }
+      setLastTouchTime(currentTime);
+    } else if (e.touches.length === 2) {
+      // Two touches (pinch)
+      setIsPinching(true);
+      const distance = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      setTouchStartDistance(distance);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!selectedElementId) {
+      if (e.touches.length === 1 && !isPinching) {
+        // Single touch pan
+        e.preventDefault();
+        const touch = e.touches[0];
+        const deltaX = touch.clientX - touchStartPos.x;
+        const deltaY = touch.clientY - touchStartPos.y;
+
+        setPanOffset(prev => ({
+          x: prev.x + deltaX,
+          y: prev.y + deltaY
+        }));
+        setTouchStartPos({ x: touch.clientX, y: touch.clientY });
+      } else if (e.touches.length === 2) {
+        // Pinch zoom
+        e.preventDefault();
+        const distance = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+
+        if (touchStartDistance > 0) {
+          const zoomFactor = distance / touchStartDistance;
+          const newZoom = Math.max(0.1, Math.min(5, zoom * zoomFactor));
+          setZoom(newZoom);
+          setTouchStartDistance(distance);
+        }
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsPinching(false);
+    setTouchStartDistance(0);
+  };
   return (
     <div
       ref={containerRef}
       className="relative flex items-center justify-center w-full h-full overflow-hidden bg-gray-900"
-      style={{ width: '100%', height: '100%' }}
+      style={{ width: '100%', height: '100%', touchAction: 'none' }} // Disable default touch actions
     >
       {/* Controls Panel */}
       <div className="absolute top-2 right-2 bg-gray-800 rounded-lg shadow-lg z-20    max-w-xs sm:max-w-sm md:max-w-md">
@@ -506,7 +573,7 @@ const Canvas: React.FC<CanvasProps> = ({
 
       <div
         ref={canvasRef}
-        className="relative shadow-2xl"
+        className="relative shadow-2xl touch-none" // Add touch-none to prevent browser touch behaviors
         style={{
           width: `${canvasSize.width}px`,
           height: `${canvasSize.height}px`,
@@ -519,6 +586,9 @@ const Canvas: React.FC<CanvasProps> = ({
         onMouseDown={handleMouseDown}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         {/* Grid Overlay */}
         <GridOverlay />
@@ -580,6 +650,37 @@ const Canvas: React.FC<CanvasProps> = ({
         <div
           className="absolute bottom-0 right-0 w-4 h-3 bg-blue-500 cursor-se-resize transform translate-x-1/2 translate-y-1/2"
           onMouseDown={handleResizeStart}
+          onTouchStart={(e) => {
+            if (e.touches.length === 1) {
+              setTouchStartPos({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+              setStartSize({ width: canvasSize.width, height: canvasSize.height });
+              setIsResizing(true);
+              e.stopPropagation();
+              e.preventDefault();
+            }
+          }}
+          onTouchMove={(e) => {
+            if (isResizing && e.touches.length === 1) {
+              e.preventDefault();
+              e.stopPropagation();
+
+              const touch = e.touches[0];
+              const deltaX = touch.clientX - touchStartPos.x;
+              const deltaY = touch.clientY - touchStartPos.y;
+
+              const newWidth = Math.max(100, startSize.width + deltaX);
+              const newHeight = Math.max(100, startSize.height + deltaY);
+
+              setCanvasSize({ width: newWidth, height: newHeight });
+            }
+          }}
+          onTouchEnd={(e) => {
+            if (isResizing) {
+              setIsResizing(false);
+              e.stopPropagation();
+              e.preventDefault();
+            }
+          }}
         ></div>
       </div>
     </div>
