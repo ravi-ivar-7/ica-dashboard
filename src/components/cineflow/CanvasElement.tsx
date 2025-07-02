@@ -365,37 +365,37 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
 
           {/* Corner resize handles */}
           <div
-            className="absolute top-0 left-0 w-6 h-6 bg-amber-500/50 rounded-full cursor-nwse-resize -translate-x-1/2 -translate-y-1/2"
+            className="absolute top-0 left-0 w-2 h-2 bg-amber-500/50  cursor-nwse-resize -translate-x-1/2 -translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'left-top')}
           ></div>
           <div
-            className="absolute top-0 right-0 w-6 h-6 bg-amber-500/50 rounded-full cursor-nesw-resize translate-x-1/2 -translate-y-1/2"
+            className="absolute top-0 right-0 w-2 h-2 bg-amber-500/50 cursor-nesw-resize translate-x-1/2 -translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'right-top')}
           ></div>
           <div
-            className="absolute bottom-0 left-0 w-6 h-6 bg-amber-500/50 rounded-full cursor-nesw-resize -translate-x-1/2 translate-y-1/2"
+            className="absolute bottom-0 left-0 w-2 h-2 bg-amber-500/50 cursor-nesw-resize -translate-x-1/2 translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'left-bottom')}
           ></div>
           <div
-            className="absolute bottom-0 right-0 w-6 h-6 bg-amber-500/50 rounded-full cursor-nwse-resize translate-x-1/2 translate-y-1/2"
+            className="absolute bottom-0 right-0 w-2 h-2 bg-amber-500/50 cursor-nwse-resize translate-x-1/2 translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'right-bottom')}
           ></div>
 
           {/* Edge resize handles */}
           <div
-            className="absolute top-0 left-1/2 w-8 h-6 bg-amber-500/50 rounded-full cursor-ns-resize -translate-x-1/2 -translate-y-1/2"
+            className="absolute top-0 left-1/2 w-3 h-2 bg-amber-500/50 cursor-ns-resize -translate-x-1/2 -translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'top')}
           ></div>
           <div
-            className="absolute right-0 top-1/2 w-6 h-8 bg-amber-500/50 rounded-full cursor-ew-resize translate-x-1/2 -translate-y-1/2"
+            className="absolute right-0 top-1/2 w-2 h-3 bg-amber-500/50 cursor-ew-resize translate-x-1/2 -translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'right')}
           ></div>
           <div
-            className="absolute bottom-0 left-1/2 w-8 h-6 bg-amber-500/50 rounded-full cursor-ns-resize -translate-x-1/2 translate-y-1/2"
+            className="absolute bottom-0 left-1/2 w-3 h-2 bg-amber-500/50 cursor-ns-resize -translate-x-1/2 translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'bottom')}
           ></div>
           <div
-            className="absolute left-0 top-1/2 w-6 h-8 bg-amber-500/50 rounded-full cursor-ew-resize -translate-x-1/2 -translate-y-1/2"
+            className="absolute left-0 top-1/2 w-2 h-3 bg-amber-500/50 cursor-ew-resize -translate-x-1/2 -translate-y-1/2"
             onMouseDown={(e) => handleResizeStart(e, 'left')}
           ></div>
         </>

@@ -12,7 +12,6 @@ interface CanvasProps {
   onUpdateElement: (id: string, updates: Partial<CanvasElementType>) => void;
   onDeleteElement: (id: string) => void;
   onDropAsset: (asset: any, position: { x: number, y: number }) => void;
-  onTogglePropertiesPanel?: () => void;
 }
 
 function getComplementColor(hex: string) {
@@ -33,7 +32,6 @@ const Canvas: React.FC<CanvasProps> = ({
   onUpdateElement,
   onDeleteElement,
   onDropAsset,
-  onTogglePropertiesPanel
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -55,7 +53,8 @@ const Canvas: React.FC<CanvasProps> = ({
   }>({ visible: false, x: 0, y: 0, elementId: null });
 
   // New enhancement states
-  const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
+  const [backgroundColor, setBackgroundColor] = useState('#4a4a4a');
+
   const [showGrid, setShowGrid] = useState(false);
   const [snapToGrid, setSnapToGrid] = useState(false);
   const [gridSize] = useState(20);
@@ -63,11 +62,7 @@ const Canvas: React.FC<CanvasProps> = ({
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [controlsExpanded, setControlsExpanded] = useState(false);
-
-  // AI editing state
-  const [aiEditingElements, setAiEditingElements] = useState<Set<string>>(new Set());
 
   // Base canvas dimensions (logical dimensions)
   const BASE_WIDTH = 1920;
@@ -86,8 +81,6 @@ const Canvas: React.FC<CanvasProps> = ({
     const container = containerRef.current;
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
-
-    setContainerSize({ width: containerWidth, height: containerHeight });
 
     // Parse aspect ratio
     const [aspectWidth, aspectHeight] = aspectRatio.split(':').map(Number);
@@ -108,7 +101,7 @@ const Canvas: React.FC<CanvasProps> = ({
     }
 
     setCanvasSize({ width, height });
-    
+
     // Calculate scale based on the canvas width relative to base width
     setScale(width / BASE_WIDTH);
   }, [aspectRatio]);
@@ -147,7 +140,7 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   }, [contextMenu.visible]);
 
-  // Listen for double-clicked assets
+  // Listen for double-clicked assets - FIXED VERSION
   useEffect(() => {
     const handleAssetDoubleClick = (e: Event) => {
       const customEvent = e as CustomEvent;
@@ -155,13 +148,7 @@ const Canvas: React.FC<CanvasProps> = ({
 
       if (!canvasRef.current) return;
 
-      // Calculate center position of canvas in logical coordinates
-      const centerX = BASE_WIDTH / 2;
-      const centerY = BASE_HEIGHT / 2;
-
-      const snappedX = (snapToGrid && showGrid) ? snapToGridIfEnabled(centerX - 150) : centerX - 150;
-      const snappedY = (snapToGrid && showGrid) ? snapToGridIfEnabled(centerY - 100) : centerY - 100;
-      onDropAsset(asset, { x: snappedX, y: snappedY });
+      onDropAsset(asset, { x: canvasSize.width/3, y: canvasSize.height/3 });
     };
 
     document.addEventListener('asset-double-clicked', handleAssetDoubleClick);
@@ -219,31 +206,34 @@ const Canvas: React.FC<CanvasProps> = ({
     };
   }, [isPanning, panStart]);
 
+  // Convert screen coordinates to logical canvas coordinates
+  const screenToLogical = useCallback((screenX: number, screenY: number) => {
+    if (!canvasRef.current) return { x: 0, y: 0 };
+    
+    const canvasRect = canvasRef.current.getBoundingClientRect();
+    
+    // Get position relative to canvas
+    const relativeX = screenX - canvasRect.left;
+    const relativeY = screenY - canvasRect.top;
+    
+    // Account for zoom and pan
+    const adjustedX = (relativeX / zoom) - (panOffset.x / zoom);
+    const adjustedY = (relativeY / zoom) - (panOffset.y / zoom);
+    
+    // Convert from display coordinates to logical coordinates
+    const logicalX = adjustedX / scale;
+    const logicalY = adjustedY / scale;
+    
+    
+    
+    return { x: logicalX, y: logicalY };
+  }, [scale, zoom, panOffset]);
+
   // Handle canvas click (deselect elements)
   const handleCanvasClick = () => {
     onSelectElement(null);
     setContextMenu({ visible: false, x: 0, y: 0, elementId: null });
   };
-
-  // Handle context menu for elements
-  const handleElementContextMenu = useCallback((e: React.MouseEvent, elementId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!selectedElementId || selectedElementId !== elementId) {
-      onSelectElement(elementId);
-    }
-
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (rect) {
-      setContextMenu({
-        visible: true,
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-        elementId: elementId
-      });
-    }
-  }, [selectedElementId, onSelectElement]);
 
   // Handle mouse down for panning
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -253,16 +243,19 @@ const Canvas: React.FC<CanvasProps> = ({
       setPanStart({ x: e.clientX, y: e.clientY });
     }
   };
-
+ 
   // Handle drag over (prevent default to allow drop)
   const handleDragOver = (e: React.DragEvent) => {
+    console.log('📋 handleDragOver called');
     e.preventDefault();
+    e.stopPropagation();
     e.dataTransfer.dropEffect = 'copy';
   };
 
-  // Handle drop (add new element)
+  // Handle drop (add new element) - FIXED VERSION
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
 
     try {
       const assetDataString = e.dataTransfer.getData('application/json');
@@ -274,22 +267,26 @@ const Canvas: React.FC<CanvasProps> = ({
 
       const assetData = JSON.parse(assetDataString);
 
-      if (!canvasRef.current) return;
+      if (!canvasRef.current) {
+        console.warn('Canvas ref not available');
+        return;
+      }
 
-      const rect = canvasRef.current.getBoundingClientRect();
-      // Convert screen coordinates to logical canvas coordinates
-      const x = (e.clientX - rect.left) / (scale * zoom);
-      const y = (e.clientY - rect.top) / (scale * zoom);
-
-      // Snap to grid if enabled
-      const snappedX = (snapToGrid && showGrid) ? snapToGridIfEnabled(x) : x;
-      const snappedY = (snapToGrid && showGrid) ? snapToGridIfEnabled(y) : y;
-
-      // Ensure the element stays within logical canvas bounds
-      const boundedX = Math.max(0, Math.min(snappedX, BASE_WIDTH - 100));
-      const boundedY = Math.max(0, Math.min(snappedY, BASE_HEIGHT - 100));
-
-      onDropAsset(assetData, { x: boundedX, y: boundedY });
+      // Convert mouse position to logical coordinates
+      const logicalPosition = screenToLogical(e.clientX, e.clientY);
+      
+      // Apply snap to grid if enabled
+      const finalX = (snapToGrid && showGrid) ? snapToGridIfEnabled(logicalPosition.x) : logicalPosition.x;
+      const finalY = (snapToGrid && showGrid) ? snapToGridIfEnabled(logicalPosition.y) : logicalPosition.y;
+      
+      // Clamp to canvas bounds (assuming default element size)
+      const elementWidth = 300; // Default width, adjust as needed
+      const elementHeight = 200; // Default height, adjust as needed
+      
+      const clampedX = Math.max(0, Math.min(finalX, BASE_WIDTH - elementWidth));
+      const clampedY = Math.max(0, Math.min(finalY, BASE_HEIGHT - elementHeight));
+      
+      onDropAsset(assetData, { x: clampedX, y: clampedY });
     } catch (error) {
       console.error('Error parsing dropped asset:', error);
     }
@@ -301,45 +298,6 @@ const Canvas: React.FC<CanvasProps> = ({
     setIsResizing(true);
     setStartPos({ x: e.clientX, y: e.clientY });
     setStartSize({ width: canvasSize.width, height: canvasSize.height });
-  };
-
-  // Handle AI editing
-  const handleAiEdit = async (elementId: string, prompt: string, details: string) => {
-    setAiEditingElements(prev => new Set([...prev, elementId]));
-    setContextMenu({ visible: false, x: 0, y: 0, elementId: null });
-
-    try {
-      const element = elements.find(el => el.id === elementId);
-      if (!element) return;
-
-      const response = await fetch('/api/ai-edit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          elementId,
-          element,
-          prompt,
-          details
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('AI edit request failed');
-      }
-
-      const updatedElement = await response.json();
-      onUpdateElement(elementId, updatedElement);
-    } catch (error) {
-      console.error('Error during AI edit:', error);
-    } finally {
-      setAiEditingElements(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(elementId);
-        return newSet;
-      });
-    }
   };
 
   // Sort elements by layer for proper stacking
@@ -431,13 +389,13 @@ const Canvas: React.FC<CanvasProps> = ({
       style={{ width: '100%', height: '100%' }}
     >
       {/* Controls Panel */}
-      <div className="absolute top-2 right-2 z-10 bg-gray-800 rounded-lg shadow-lg">
-        {/* Header with toggle */}
+      <div className="absolute top-2 right-2 bg-gray-800 rounded-lg shadow-lg z-20   max-w-xs sm:max-w-sm md:max-w-md">
+        {/* Sticky Header with toggle */}
         <div
-          className="flex items-center justify-between p-2 cursor-pointer hover:bg-gray-700 rounded-lg"
+          className="sticky top-0 z-30 flex items-center justify-between p-2 bg-gray-800 hover:bg-gray-700 rounded-lg cursor-pointer"
           onClick={() => setControlsExpanded(!controlsExpanded)}
         >
-          <span className="w-4 h-4"> ⚙️ </span>
+          <span className="w-4 h-4">⚙️</span>
           <svg
             className={`w-4 h-4 mx-1 pt-1 text-white transition-transform ${controlsExpanded ? 'rotate-180' : ''}`}
             fill="none"
@@ -448,9 +406,10 @@ const Canvas: React.FC<CanvasProps> = ({
           </svg>
         </div>
 
-        {/* Collapsible Content */}
+        {/* Scrollable Collapsible Content */}
         {controlsExpanded && (
-          <div className="w-full max-w-xs sm:max-w-sm md:max-w-md p-4 pt-2 space-y-5 bg-gray-800 rounded-xl shadow-xl text-sm text-white">
+          <div className="max-h-[40vh] overflow-y-auto bg-gray-800 rounded-b-xl shadow-xl text-sm text-white p-4 pt-2 space-y-5">
+
             {/* Background Color */}
             <div className="space-y-1">
               <label className="block font-semibold">Background Color</label>
@@ -577,8 +536,6 @@ const Canvas: React.FC<CanvasProps> = ({
             y: Math.max(0, Math.min(element.y, BASE_HEIGHT - element.height))
           };
 
-          const isAiEditing = aiEditingElements.has(element.id);
-
           return (
             <div key={element.id} className="relative">
               <CanvasElement
@@ -615,24 +572,6 @@ const Canvas: React.FC<CanvasProps> = ({
                 }}
                 onDelete={onDeleteElement}
               />
-              
-              {/* AI editing loading overlay */}
-              {isAiEditing && (
-                <div 
-                  className="absolute inset-0 bg-blue-500/20 border-2 border-blue-500 rounded flex items-center justify-center"
-                  style={{
-                    left: `${element.x * scale}px`,
-                    top: `${element.y * scale}px`,
-                    width: `${element.width * scale}px`,
-                    height: `${element.height * scale}px`,
-                  }}
-                >
-                  <div className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    AI Editing...
-                  </div>
-                </div>
-              )}
             </div>
           );
         })}
@@ -643,8 +582,6 @@ const Canvas: React.FC<CanvasProps> = ({
           onMouseDown={handleResizeStart}
         ></div>
       </div>
-
-    
     </div>
   );
 };

@@ -241,14 +241,14 @@ return (
 
       {/* Aspect Ratio Dropdown */}
       {isEditing && (
-        <div className="border-t border-white/10 pt-2">
+        <div className="border-t border-white/10 p-2">
           <div className="relative group w-full sm:w-auto">
             <button className="flex items-center justify-between w-full sm:w-auto space-x-2 p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors">
               <span className="text-xs font-medium">Aspect Ratio: {aspectRatio}</span>
               <ChevronDown className="w-3 h-3 flex-shrink-0" />
             </button>
 
-            <div className="absolute left-0 right-0 sm:right-auto mt-1 hidden group-hover:block bg-gray-900 border border-white/20 rounded-lg shadow-lg z-50 min-w-[160px]">
+            <div className="absolute left-0 right-0 sm:right-auto hidden group-hover:block bg-gray-900 border border-white/20 rounded-lg shadow-lg z-50 min-w-[160px]">
               {aspectRatios.map((ratio) => (
                 <button
                   key={ratio.value}

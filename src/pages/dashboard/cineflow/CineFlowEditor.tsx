@@ -843,9 +843,7 @@ export default function CineFlowEditor() {
             {/* Canvas container - flexible space above timeline */}
             <div
               className="flex-1 min-h-0 overflow-y-auto bg-gray-800"
-              style={{
-                minHeight: '150px' // Minimum canvas height
-              }}
+         
             >
               <Canvas
                 elements={project.elements}
@@ -870,7 +868,7 @@ export default function CineFlowEditor() {
             >
               {/* Resize handle */}
               <div
-                className="absolute -top-[6px] left-0 right-0 h-1 flex items-center justify-center group cursor-row-resize z-50"
+                className="absolute -top-[6px] left-0 right-0 h-1 flex items-center justify-center group cursor-row-resize "
                 onMouseDown={handleResizeMouseDown}
               >
                 <div className="w-8 h-2 rounded-full bg-gray-500 group-hover:bg-amber-400 transition-colors duration-200" />
@@ -955,7 +953,7 @@ export default function CineFlowEditor() {
           <>
             {/* Left Panel - Mobile */}
             <div
-              className={`fixed bottom-0 left-0  w-full transform transition-transform duration-300 ${showLeftPanel ? 'translate-y-0' : 'translate-y-full'
+              className={`fixed bottom-0 left-0  z-20 w-full transform transition-transform duration-300 ${showLeftPanel ? 'translate-y-0' : 'translate-y-full'
                 }`}
               style={{
                 height: 'calc(90vh - 48px)',
@@ -985,7 +983,7 @@ export default function CineFlowEditor() {
 
             {/* Right Panel - Mobile */}
             <div
-              className={`fixed bottom-0 right-0   w-full transform transition-transform duration-300 ${showRightPanel ? 'translate-y-0' : 'translate-y-full'
+              className={`fixed bottom-0 right-0 z-20  w-full transform transition-transform duration-300 ${showRightPanel ? 'translate-y-0' : 'translate-y-full'
                 }`}
               style={{
                 height: 'calc(90vh - 48px)',

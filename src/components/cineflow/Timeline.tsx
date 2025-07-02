@@ -286,7 +286,7 @@ const Timeline: React.FC<TimelineProps> = ({
   return (
     <div className="flex flex-col bg-gray-900/90 border-t border-white/10  ">
       {/* 1. TOP HEADER - STICKY BOTH VERTICALLY AND HORIZONTALLY */}
-      <div className="sticky top-0 z-40 flex items-center justify-between p-2 border-b border-white/10 flex-shrink-0 bg-gray-900/95 backdrop-blur-sm">
+      <div className="   flex items-center justify-between p-2 border-b border-white/10 flex-shrink-0 bg-gray-900/95 backdrop-blur-sm">
         <div className="flex items-center space-x-2">
           <button
             onClick={onPlayPause}
@@ -325,7 +325,7 @@ const Timeline: React.FC<TimelineProps> = ({
           {showLayerPanel && (
             <div className="w-48 flex-shrink-0 border-r border-white/10 bg-gray-900/80">
               {/* Layer Panel Header - Sticky within the scrollable area */}
-              <div className="sticky top-0 p-2 border-b border-white/10 bg-gray-900/90 z-30">
+              <div className="sticky top-0 p-2 border-b border-white/10 bg-gray-900/90 ">
                 <h3 className="text-white font-bold text-xs flex items-center">
                   <Layers className="w-3 h-3 mr-1" />
                   Layers ({elements.length})
