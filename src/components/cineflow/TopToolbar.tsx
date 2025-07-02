@@ -34,7 +34,6 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
   projectDescription = '',
   onProjectDetailsChange
 }) => {
-  const [showAspectRatioDropdown, setShowAspectRatioDropdown] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(projectName);
   const [editedDescription, setEditedDescription] = useState(projectDescription);
@@ -55,7 +54,6 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
         buttonRef.current &&
         !dropdownRef.current.contains(event.target as Node) &&
         !buttonRef.current.contains(event.target as Node)) {
-        setShowAspectRatioDropdown(false);
       }
     };
 

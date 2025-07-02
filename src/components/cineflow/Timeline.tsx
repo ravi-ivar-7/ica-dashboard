@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { CanvasElementType } from '../../types/cineflow';
-import { Play, Pause, ChevronLeft, ChevronRight, Clock, Layers } from 'lucide-react';
+import { Play, Pause, Clock, Layers } from 'lucide-react';
 
 interface TimelineProps {
   elements: CanvasElementType[];
@@ -30,18 +30,15 @@ const Timeline: React.FC<TimelineProps> = ({
   showLayerPanel = true
 }) => {
   const timelineRef = useRef<HTMLDivElement>(null);
-  const timelineContentRef = useRef<HTMLDivElement>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   const [isDraggingElement, setIsDraggingElement] = useState<string | null>(null);
   const [dragType, setDragType] = useState<'move' | 'start' | 'end' | 'layer' | null>(null);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [startTime, setStartTime] = useState(0);
   const [startDuration, setStartDuration] = useState(0);
-  const [startLayer, setStartLayer] = useState(0);
   const [timelineWidth, setTimelineWidth] = useState(0);
   const [customDuration, setCustomDuration] = useState(duration);
   const [dragOverElementId, setDragOverElementId] = useState<string | null>(null);
-  const [draggedElement, setDraggedElement] = useState<CanvasElementType | null>(null);
 
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newDuration = Math.max(1, Number(e.target.value));
@@ -130,7 +127,6 @@ const Timeline: React.FC<TimelineProps> = ({
     if (element) {
       setStartTime(element.startTime);
       setStartDuration(element.duration);
-      setStartLayer(element.layer || 0);
       onSelectElement(elementId);
     }
   };
@@ -145,8 +141,6 @@ const Timeline: React.FC<TimelineProps> = ({
     setIsDraggingElement(elementId);
     setDragType('layer');
     setStartPos({ x: e.clientX, y: e.clientY });
-    setStartLayer(element.layer || 0);
-    setDraggedElement(element);
     onSelectElement(elementId);
     document.body.classList.add('dragging-layer');
   };
@@ -177,7 +171,6 @@ const Timeline: React.FC<TimelineProps> = ({
     setIsDraggingElement(null);
     setDragType(null);
     setDragOverElementId(null);
-    setDraggedElement(null);
     document.body.classList.remove('dragging-layer');
   };
 
@@ -242,7 +235,6 @@ const Timeline: React.FC<TimelineProps> = ({
       setIsDraggingElement(null);
       setDragType(null);
       setDragOverElementId(null);
-      setDraggedElement(null);
       document.body.classList.remove('dragging-layer');
     };
 
@@ -422,7 +414,7 @@ const Timeline: React.FC<TimelineProps> = ({
 
               {/* Element timelines */}
               <div className="p-2 space-y-1">
-                {sortedElements.map((element, index) => {
+                {sortedElements.map((element, _) => {
                   const isVisible = currentTime >= element.startTime &&
                     currentTime < (element.startTime + element.duration);
 
