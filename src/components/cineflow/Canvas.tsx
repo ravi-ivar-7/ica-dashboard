@@ -12,6 +12,7 @@ interface CanvasProps {
   onUpdateElement: (id: string, updates: Partial<CanvasElementType>) => void;
   onDeleteElement: (id: string) => void;
   onDropAsset: (asset: any, position: { x: number, y: number }) => void;
+  onTogglePropertiesPanel?: () => void;
 }
 
 function getComplementColor(hex: string) {
@@ -22,7 +23,6 @@ function getComplementColor(hex: string) {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-
 const Canvas: React.FC<CanvasProps> = ({
   elements,
   selectedElementId,
@@ -32,7 +32,8 @@ const Canvas: React.FC<CanvasProps> = ({
   onSelectElement,
   onUpdateElement,
   onDeleteElement,
-  onDropAsset
+  onDropAsset,
+  onTogglePropertiesPanel
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -45,18 +46,32 @@ const Canvas: React.FC<CanvasProps> = ({
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [startSize, setStartSize] = useState({ width: 0, height: 0 });
 
-  // New enhancement states
-const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    elementId: string | null;
+  }>({ visible: false, x: 0, y: 0, elementId: null });
 
+  // New enhancement states
+  const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
   const [showGrid, setShowGrid] = useState(false);
   const [snapToGrid, setSnapToGrid] = useState(false);
-  const [gridSize] = useState(20); // Reduced for finer grid
+  const [gridSize] = useState(20);
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [controlsExpanded, setControlsExpanded] = useState(false);
+
+  // AI editing state
+  const [aiEditingElements, setAiEditingElements] = useState<Set<string>>(new Set());
+
+  // Base canvas dimensions (logical dimensions)
+  const BASE_WIDTH = 1920;
+  const BASE_HEIGHT = 1080;
 
   // Snap to grid helper function
   const snapToGridIfEnabled = useCallback((value: number) => {
@@ -74,21 +89,28 @@ const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
 
     setContainerSize({ width: containerWidth, height: containerHeight });
 
-    let width, height;
+    // Parse aspect ratio
     const [aspectWidth, aspectHeight] = aspectRatio.split(':').map(Number);
+    const aspectRatioValue = aspectWidth / aspectHeight;
 
-    if (containerWidth / containerHeight > aspectWidth / aspectHeight) {
-      // Container is wider than the aspect ratio
-      height = containerHeight * 0.9;
-      width = height * (aspectWidth / aspectHeight);
+    // Calculate maximum possible dimensions to use full container space
+    const containerAspect = containerWidth / containerHeight;
+
+    let width, height;
+    if (containerAspect > aspectRatioValue) {
+      // Container is wider - height is the limiting factor
+      height = containerHeight * 0.95; // Use 95% to leave small margin
+      width = height * aspectRatioValue;
     } else {
-      // Container is taller than the aspect ratio
-      width = containerWidth * 0.9;
-      height = width * (aspectHeight / aspectWidth);
+      // Container is taller - width is the limiting factor
+      width = containerWidth * 0.95; // Use 95% to leave small margin
+      height = width / aspectRatioValue;
     }
 
     setCanvasSize({ width, height });
-    setScale(width / 1920); // Assuming 1920 is the base width
+    
+    // Calculate scale based on the canvas width relative to base width
+    setScale(width / BASE_WIDTH);
   }, [aspectRatio]);
 
   // Set up ResizeObserver for dynamic container size monitoring
@@ -113,6 +135,18 @@ const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
     updateCanvasSize();
   }, [updateCanvasSize]);
 
+  // Hide context menu on outside click
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setContextMenu({ visible: false, x: 0, y: 0, elementId: null });
+    };
+
+    if (contextMenu.visible) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [contextMenu.visible]);
+
   // Listen for double-clicked assets
   useEffect(() => {
     const handleAssetDoubleClick = (e: Event) => {
@@ -121,12 +155,10 @@ const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
 
       if (!canvasRef.current) return;
 
-      // Calculate center position of canvas
-      const rect = canvasRef.current.getBoundingClientRect();
-      const centerX = rect.width / (2 * scale * zoom);
-      const centerY = rect.height / (2 * scale * zoom);
+      // Calculate center position of canvas in logical coordinates
+      const centerX = BASE_WIDTH / 2;
+      const centerY = BASE_HEIGHT / 2;
 
-      // Add asset to canvas at center position
       const snappedX = (snapToGrid && showGrid) ? snapToGridIfEnabled(centerX - 150) : centerX - 150;
       const snappedY = (snapToGrid && showGrid) ? snapToGridIfEnabled(centerY - 100) : centerY - 100;
       onDropAsset(asset, { x: snappedX, y: snappedY });
@@ -137,7 +169,7 @@ const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
     return () => {
       document.removeEventListener('asset-double-clicked', handleAssetDoubleClick);
     };
-  }, [onDropAsset, scale, zoom, snapToGridIfEnabled]);
+  }, [onDropAsset, snapToGridIfEnabled, snapToGrid, showGrid]);
 
   // Zoom functionality with shift + mouse wheel
   useEffect(() => {
@@ -190,7 +222,28 @@ const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
   // Handle canvas click (deselect elements)
   const handleCanvasClick = () => {
     onSelectElement(null);
+    setContextMenu({ visible: false, x: 0, y: 0, elementId: null });
   };
+
+  // Handle context menu for elements
+  const handleElementContextMenu = useCallback((e: React.MouseEvent, elementId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!selectedElementId || selectedElementId !== elementId) {
+      onSelectElement(elementId);
+    }
+
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (rect) {
+      setContextMenu({
+        visible: true,
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+        elementId: elementId
+      });
+    }
+  }, [selectedElementId, onSelectElement]);
 
   // Handle mouse down for panning
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -214,7 +267,6 @@ const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
     try {
       const assetDataString = e.dataTransfer.getData('application/json');
 
-      // Check if we have valid data before parsing
       if (!assetDataString || assetDataString.trim() === '') {
         console.warn('No asset data found in drop event');
         return;
@@ -225,6 +277,7 @@ const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
       if (!canvasRef.current) return;
 
       const rect = canvasRef.current.getBoundingClientRect();
+      // Convert screen coordinates to logical canvas coordinates
       const x = (e.clientX - rect.left) / (scale * zoom);
       const y = (e.clientY - rect.top) / (scale * zoom);
 
@@ -232,9 +285,9 @@ const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
       const snappedX = (snapToGrid && showGrid) ? snapToGridIfEnabled(x) : x;
       const snappedY = (snapToGrid && showGrid) ? snapToGridIfEnabled(y) : y;
 
-      // Ensure the element stays within canvas bounds
-      const boundedX = Math.max(0, Math.min(snappedX, canvasSize.width / scale - 100));
-      const boundedY = Math.max(0, Math.min(snappedY, canvasSize.height / scale - 100));
+      // Ensure the element stays within logical canvas bounds
+      const boundedX = Math.max(0, Math.min(snappedX, BASE_WIDTH - 100));
+      const boundedY = Math.max(0, Math.min(snappedY, BASE_HEIGHT - 100));
 
       onDropAsset(assetData, { x: boundedX, y: boundedY });
     } catch (error) {
@@ -248,6 +301,45 @@ const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
     setIsResizing(true);
     setStartPos({ x: e.clientX, y: e.clientY });
     setStartSize({ width: canvasSize.width, height: canvasSize.height });
+  };
+
+  // Handle AI editing
+  const handleAiEdit = async (elementId: string, prompt: string, details: string) => {
+    setAiEditingElements(prev => new Set([...prev, elementId]));
+    setContextMenu({ visible: false, x: 0, y: 0, elementId: null });
+
+    try {
+      const element = elements.find(el => el.id === elementId);
+      if (!element) return;
+
+      const response = await fetch('/api/ai-edit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          elementId,
+          element,
+          prompt,
+          details
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('AI edit request failed');
+      }
+
+      const updatedElement = await response.json();
+      onUpdateElement(elementId, updatedElement);
+    } catch (error) {
+      console.error('Error during AI edit:', error);
+    } finally {
+      setAiEditingElements(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(elementId);
+        return newSet;
+      });
+    }
   };
 
   // Sort elements by layer for proper stacking
@@ -272,9 +364,9 @@ const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
       let newWidth = Math.max(200, startSize.width + deltaX);
       let newHeight = newWidth / aspectRatioValue;
 
-      // Update canvas size
+      // Update canvas size and scale
       setCanvasSize({ width: newWidth, height: newHeight });
-      setScale(newWidth / 1920); // Update scale based on new width
+      setScale(newWidth / BASE_WIDTH);
     };
 
     const handleMouseUp = () => {
@@ -303,47 +395,46 @@ const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
   const zoomOut = () => setZoom(prev => Math.max(0.1, prev / 1.2));
 
   // Grid SVG pattern
- const GridOverlay = () => {
-  if (!showGrid) return null;
+  const GridOverlay = () => {
+    if (!showGrid) return null;
 
-  const actualCanvasWidth = canvasSize.width;
-  const actualCanvasHeight = canvasSize.height;
+    const actualCanvasWidth = canvasSize.width;
+    const actualCanvasHeight = canvasSize.height;
+    const gridDotColor = getComplementColor(backgroundColor);
 
-  const gridDotColor = getComplementColor(backgroundColor); 
-
-  return (
-    <svg
-      className="absolute top-0 left-0 pointer-events-none"
-      width={actualCanvasWidth}
-      height={actualCanvasHeight}
-      style={{ opacity: 1 }}
-    >
-      <defs>
-        <pattern
-          id="grid"
-          width={gridSize}
-          height={gridSize}
-          patternUnits="userSpaceOnUse"
-        >
-          <circle cx="1" cy="1" r="0.8" fill={gridDotColor} />  
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#grid)" />
-    </svg>
-  );
-};
-
+    return (
+      <svg
+        className="absolute top-0 left-0 pointer-events-none"
+        width={actualCanvasWidth}
+        height={actualCanvasHeight}
+        style={{ opacity: 1 }}
+      >
+        <defs>
+          <pattern
+            id="grid"
+            width={gridSize * scale}
+            height={gridSize * scale}
+            patternUnits="userSpaceOnUse"
+          >
+            <circle cx="1" cy="1" r="0.8" fill={gridDotColor} />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)" />
+      </svg>
+    );
+  };
 
   return (
     <div
       ref={containerRef}
       className="relative flex items-center justify-center w-full h-full overflow-hidden bg-gray-900"
+      style={{ width: '100%', height: '100%' }}
     >
       {/* Controls Panel */}
       <div className="absolute top-2 right-2 z-10 bg-gray-800 rounded-lg shadow-lg">
         {/* Header with toggle */}
         <div
-          className="flex items-center justify-between   p-2 cursor-pointer hover:bg-gray-700 rounded-lg"
+          className="flex items-center justify-between p-2 cursor-pointer hover:bg-gray-700 rounded-lg"
           onClick={() => setControlsExpanded(!controlsExpanded)}
         >
           <span className="w-4 h-4"> ⚙️ </span>
@@ -360,7 +451,6 @@ const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
         {/* Collapsible Content */}
         {controlsExpanded && (
           <div className="w-full max-w-xs sm:max-w-sm md:max-w-md p-4 pt-2 space-y-5 bg-gray-800 rounded-xl shadow-xl text-sm text-white">
-
             {/* Background Color */}
             <div className="space-y-1">
               <label className="block font-semibold">Background Color</label>
@@ -369,7 +459,7 @@ const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
                   type="color"
                   value={backgroundColor}
                   onChange={(e) => setBackgroundColor(e.target.value)}
-                  className="w-8 h-8 rounded  cursor-pointer shadow-sm"
+                  className="w-8 h-8 rounded cursor-pointer shadow-sm"
                 />
                 <span className="text-gray-400 text-xs">Set canvas background</span>
               </div>
@@ -446,13 +536,13 @@ const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
                 <li>Shift + Scroll: Zoom</li>
                 <li>Alt + Drag / Middle Click: Pan</li>
                 <li>Drag assets onto canvas</li>
-               <li>Resize canvas from bottom-right corner.</li>
+                <li>Resize canvas from bottom-right corner</li>
                 <li>Double-click: Center asset</li>
+                <li>Right-click selected element: Context menu</li>
               </ul>
             </div>
           </div>
         )}
-
       </div>
 
       <div
@@ -461,7 +551,7 @@ const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
         style={{
           width: `${canvasSize.width}px`,
           height: `${canvasSize.height}px`,
-          transform: `scale(${scale * zoom}) translate(${panOffset.x / (scale * zoom)}px, ${panOffset.y / (scale * zoom)}px)`,
+          transform: `scale(${zoom}) translate(${panOffset.x / zoom}px, ${panOffset.y / zoom}px)`,
           transformOrigin: 'center',
           backgroundColor: backgroundColor,
           cursor: isPanning ? 'grabbing' : 'grab'
@@ -480,49 +570,70 @@ const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
           const isVisible = currentTime >= element.startTime &&
             currentTime < (element.startTime + element.duration);
 
-          // Ensure element stays within canvas bounds
+          // Ensure element stays within logical canvas bounds
           const boundedElement = {
             ...element,
-            x: Math.max(0, Math.min(element.x, canvasSize.width / scale - element.width)),
-            y: Math.max(0, Math.min(element.y, canvasSize.height / scale - element.height))
+            x: Math.max(0, Math.min(element.x, BASE_WIDTH - element.width)),
+            y: Math.max(0, Math.min(element.y, BASE_HEIGHT - element.height))
           };
 
-          return (
-            <CanvasElement
-              key={element.id}
-              element={boundedElement}
-              isSelected={selectedElementId === element.id}
-              isPlaying={isPlaying}
-              currentTime={currentTime}
-              isVisible={isVisible}
-              onSelect={onSelectElement}
-              onUpdate={(id, updates) => {
-                // Only apply snap to grid for position updates if snap is enabled
-                let snappedUpdates = { ...updates };
-                if (snapToGrid && showGrid) {
-                  if (updates.x !== undefined) {
-                    snappedUpdates.x = snapToGridIfEnabled(updates.x);
-                  }
-                  if (updates.y !== undefined) {
-                    snappedUpdates.y = snapToGridIfEnabled(updates.y);
-                  }
-                }
+          const isAiEditing = aiEditingElements.has(element.id);
 
-                // Ensure updates keep element within canvas bounds
-                const updatedElement = { ...element, ...snappedUpdates };
-                const boundedUpdates = {
-                  ...snappedUpdates,
-                  x: snappedUpdates.x !== undefined ?
-                    Math.max(0, Math.min(updatedElement.x, canvasSize.width / scale - updatedElement.width)) :
-                    undefined,
-                  y: snappedUpdates.y !== undefined ?
-                    Math.max(0, Math.min(updatedElement.y, canvasSize.height / scale - updatedElement.height)) :
-                    undefined
-                };
-                onUpdateElement(id, boundedUpdates);
-              }}
-              onDelete={onDeleteElement}
-            />
+          return (
+            <div key={element.id} className="relative">
+              <CanvasElement
+                element={boundedElement}
+                isSelected={selectedElementId === element.id}
+                isPlaying={isPlaying}
+                currentTime={currentTime}
+                isVisible={isVisible}
+                onSelect={onSelectElement}
+                onUpdate={(id, updates) => {
+                  // Apply snap to grid for position updates if snap is enabled
+                  let snappedUpdates = { ...updates };
+                  if (snapToGrid && showGrid) {
+                    if (updates.x !== undefined) {
+                      snappedUpdates.x = snapToGridIfEnabled(updates.x);
+                    }
+                    if (updates.y !== undefined) {
+                      snappedUpdates.y = snapToGridIfEnabled(updates.y);
+                    }
+                  }
+
+                  // Ensure updates keep element within logical canvas bounds
+                  const updatedElement = { ...element, ...snappedUpdates };
+                  const boundedUpdates = {
+                    ...snappedUpdates,
+                    x: snappedUpdates.x !== undefined ?
+                      Math.max(0, Math.min(updatedElement.x, BASE_WIDTH - updatedElement.width)) :
+                      undefined,
+                    y: snappedUpdates.y !== undefined ?
+                      Math.max(0, Math.min(updatedElement.y, BASE_HEIGHT - updatedElement.height)) :
+                      undefined
+                  };
+                  onUpdateElement(id, boundedUpdates);
+                }}
+                onDelete={onDeleteElement}
+              />
+              
+              {/* AI editing loading overlay */}
+              {isAiEditing && (
+                <div 
+                  className="absolute inset-0 bg-blue-500/20 border-2 border-blue-500 rounded flex items-center justify-center"
+                  style={{
+                    left: `${element.x * scale}px`,
+                    top: `${element.y * scale}px`,
+                    width: `${element.width * scale}px`,
+                    height: `${element.height * scale}px`,
+                  }}
+                >
+                  <div className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    AI Editing...
+                  </div>
+                </div>
+              )}
+            </div>
           );
         })}
 
@@ -532,6 +643,8 @@ const [backgroundColor, setBackgroundColor] = useState('#7c7c7c');
           onMouseDown={handleResizeStart}
         ></div>
       </div>
+
+    
     </div>
   );
 };

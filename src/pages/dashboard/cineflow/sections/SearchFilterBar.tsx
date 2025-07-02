@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Search, Grid, List } from 'lucide-react';
 
 interface SearchFilterBarProps {
