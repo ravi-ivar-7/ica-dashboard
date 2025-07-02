@@ -953,7 +953,7 @@ export default function CineFlowEditor() {
           <>
             {/* Left Panel - Mobile */}
             <div
-              className={`fixed bottom-0 left-0  z-20 w-full transform transition-transform duration-300 ${showLeftPanel ? 'translate-y-0' : 'translate-y-full'
+              className={`fixed bottom-0 left-0  z-30 w-full transform transition-transform duration-300 ${showLeftPanel ? 'translate-y-0' : 'translate-y-full'
                 }`}
               style={{
                 height: 'calc(90vh - 48px)',
@@ -983,7 +983,7 @@ export default function CineFlowEditor() {
 
             {/* Right Panel - Mobile */}
             <div
-              className={`fixed bottom-0 right-0 z-20  w-full transform transition-transform duration-300 ${showRightPanel ? 'translate-y-0' : 'translate-y-full'
+              className={`fixed bottom-0 right-0 z-30  w-full transform transition-transform duration-300 ${showRightPanel ? 'translate-y-0' : 'translate-y-full'
                 }`}
               style={{
                 height: 'calc(90vh - 48px)',

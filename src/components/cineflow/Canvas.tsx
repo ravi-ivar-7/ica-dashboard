@@ -389,10 +389,10 @@ const Canvas: React.FC<CanvasProps> = ({
       style={{ width: '100%', height: '100%' }}
     >
       {/* Controls Panel */}
-      <div className="absolute top-2 right-2 bg-gray-800 rounded-lg shadow-lg z-20   max-w-xs sm:max-w-sm md:max-w-md">
+      <div className="absolute top-2 right-2 bg-gray-800 rounded-lg shadow-lg z-20    max-w-xs sm:max-w-sm md:max-w-md">
         {/* Sticky Header with toggle */}
         <div
-          className="sticky top-0 z-30 flex items-center justify-between p-2 bg-gray-800 hover:bg-gray-700 rounded-lg cursor-pointer"
+          className="sticky top-0   flex items-center justify-between p-2 bg-gray-800 hover:bg-gray-700 rounded-lg cursor-pointer"
           onClick={() => setControlsExpanded(!controlsExpanded)}
         >
           <span className="w-4 h-4">⚙️</span>

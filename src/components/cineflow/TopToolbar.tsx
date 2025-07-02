@@ -85,7 +85,7 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
   };
 
 return (
-  <div className="sticky top-0 z-50 bg-gray-900/90 border-b border-white/10 backdrop-blur-sm">
+  <div className="sticky top-0  bg-gray-900/90 border-b border-white/10 backdrop-blur-sm z-40">
     {/* Scrollable toolbar container */}
     <div className="overflow-x-auto whitespace-nowrap scrollbar-hide">
       <div className="inline-flex items-center justify-between p-2 w-full min-w-max">
@@ -248,7 +248,7 @@ return (
               <ChevronDown className="w-3 h-3 flex-shrink-0" />
             </button>
 
-            <div className="absolute left-0 right-0 sm:right-auto hidden group-hover:block bg-gray-900 border border-white/20 rounded-lg shadow-lg z-50 min-w-[160px]">
+            <div className="absolute left-0 right-0 sm:right-auto hidden group-hover:block bg-gray-900 border border-white/20 rounded-lg shadow-lg z-10 min-w-[160px]">
               {aspectRatios.map((ratio) => (
                 <button
                   key={ratio.value}
