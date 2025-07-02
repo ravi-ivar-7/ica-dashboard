@@ -4,13 +4,14 @@ import { createFFmpeg } from '@ffmpeg/ffmpeg';
 let ffmpegInstance: any = null;
 
 export const loadFFmpeg = async () => {
+  if (typeof window === 'undefined') return null;
   if (ffmpegInstance) return ffmpegInstance;
-  
+
   try {
-  ffmpegInstance = createFFmpeg({ 
-    // log: true,
-    corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
-  });
+    ffmpegInstance = createFFmpeg({
+      log: true,
+      corePath: '/ffmpeg/ffmpeg-core.js',
+    });
     await ffmpegInstance.load();
     return ffmpegInstance;
   } catch (error) {
@@ -18,6 +19,7 @@ export const loadFFmpeg = async () => {
     throw error;
   }
 };
+
 
 // ffmpegService.ts - Safe cleanup function
 export const cleanupFFmpeg = async (ffmpegInstance: any, totalFrames: number): Promise<void> => {
