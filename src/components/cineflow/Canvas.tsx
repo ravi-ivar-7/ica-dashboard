@@ -62,8 +62,8 @@ const Canvas: React.FC<CanvasProps> = ({
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-  const [controlsExpanded, setControlsExpanded] = useState(false); 
-  
+  const [controlsExpanded, setControlsExpanded] = useState(false);
+
   // Base canvas dimensions (logical dimensions)
   const BASE_WIDTH = 1920;
   const BASE_HEIGHT = 1080;
@@ -475,7 +475,10 @@ const Canvas: React.FC<CanvasProps> = ({
 
         {/* Scrollable Collapsible Content */}
         {controlsExpanded && (
-          <div className="max-h-[40vh] overflow-y-auto bg-gray-800 rounded-b-xl shadow-xl text-sm text-white p-4 pt-2 space-y-5">
+          <div
+            className="max-h-[40vh] overflow-y-auto bg-gray-800 rounded-b-xl shadow-xl text-sm text-white p-4 pt-2 space-y-5 scroll-smooth"
+            style={{ touchAction: 'auto', pointerEvents: 'auto' }}
+          >
 
             {/* Background Color */}
             <div className="space-y-1">
@@ -558,6 +561,7 @@ const Canvas: React.FC<CanvasProps> = ({
             {/* Help */}
             <div className="pt-3 border-t border-gray-700 space-y-1">
               <h4 className="font-semibold text-sm">Quick Tips</h4>
+              <p>Mouse</p>
               <ul className="text-xs text-gray-300 space-y-0.5 pl-4 list-disc">
                 <li>Shift + Scroll: Zoom</li>
                 <li>Alt + Drag / Middle Click: Pan</li>
@@ -565,6 +569,18 @@ const Canvas: React.FC<CanvasProps> = ({
                 <li>Resize canvas from bottom-right corner</li>
                 <li>Double-click: Center asset</li>
                 <li>Right-click selected element: Context menu</li>
+                <li>No effect on canvas when element selected</li>
+
+
+              </ul>
+              <p> Touch </p>
+              <ul className="text-xs text-gray-300 space-y-0.5 pl-4 list-disc">
+                <li>Tap element to select</li>
+                <li>Drag with 1 finger to move</li>
+                <li>Drag corners or edges to resize</li>
+                <li>Tap outside to deselect </li>
+                <li>Pinch with 2 fingers to zoom canvas</li>
+                <li>Drag bottom-right grip to resize canvas</li>
               </ul>
             </div>
           </div>

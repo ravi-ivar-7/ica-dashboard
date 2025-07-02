@@ -364,7 +364,9 @@ const Timeline: React.FC<TimelineProps> = ({
       />
 
       {/* MAIN SCROLLABLE AREA */}
-      <div className="flex-1 overflow-auto" ref={containerRef}>
+      <div className="flex-1 overflow-auto   " ref={containerRef} 
+     
+      >
         <div className="flex" style={{ minWidth: `${Math.max(timelineWidth, 800)}px` }}>
 
           {/* LAYERS PANEL */}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, GripHorizontal } from 'lucide-react';
 import ErrorBoundary from '../../../components/dashboard/ErrorBoundary';
 import { toast } from '../../../contexts/ToastContext';
 import { CanvasElementType, CineFlowProject, Template, AspectRatio } from '../../../types/cineflow';
@@ -692,17 +692,18 @@ export default function CineFlowEditor() {
     : null;
 
   // Handle project metadata changes
-  const handleProjectDetailsChange = (name: string, description: string) => {
+  const handleProjectDetailsChange = (name: string, description: string, tags: string[]) => {
     setProject(prev => {
       if (!prev) {
         console.error('Cannot update project metadata: project is null');
-        return prev; // Prevent null assignment
+        return prev;
       }
 
       return {
         ...prev,
         name,
         description,
+        tags, // Add tags to the project object
         updatedAt: new Date().toISOString()
       };
     });
@@ -752,6 +753,26 @@ export default function CineFlowEditor() {
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
   };
+  const handleResizeTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    const startY = e.touches[0].clientY;
+    const startHeight = timelineHeight;
+
+    const handleTouchMove = (moveEvent: TouchEvent) => {
+      moveEvent.preventDefault();
+      const deltaY = startY - moveEvent.touches[0].clientY;
+      const newHeight = Math.max(150, Math.min(500, startHeight + deltaY));
+      setTimelineHeight(newHeight);
+    };
+
+    const handleTouchEnd = () => {
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd);
+  };
 
   if (isLoading) {
     return <div className="text-white p-8">Loading editor...</div>;
@@ -785,6 +806,7 @@ export default function CineFlowEditor() {
           onSave={handleSave}
           onExport={handleExport}
           projectDescription={project.description}
+          tags={project.tags || []} // Pass the project tags
           onProjectDetailsChange={handleProjectDetailsChange}
         />
 
@@ -843,7 +865,7 @@ export default function CineFlowEditor() {
             {/* Canvas container - flexible space above timeline */}
             <div
               className="flex-1 min-h-0 overflow-y-auto bg-gray-800"
-         
+
             >
               <Canvas
                 elements={project.elements}
@@ -865,14 +887,17 @@ export default function CineFlowEditor() {
                 height: `${timelineHeight}px`,
                 minHeight: '150px' // Minimum timeline height
               }}
+
             >
               {/* Resize handle */}
               <div
-                className="absolute -top-[6px] left-0 right-0 h-1 flex items-center justify-center group cursor-row-resize "
+                className="absolute -top-[8px] left-0 right-0   flex items-center justify-center group cursor-row-resize z-10"
                 onMouseDown={handleResizeMouseDown}
+                onTouchStart={handleResizeTouchStart}
               >
-                <div className="w-8 h-2 rounded-full bg-gray-500 group-hover:bg-amber-400 transition-colors duration-200" />
+                <GripHorizontal className="w-4 h-4 text-gray-400 group-hover:text-white transition" />
               </div>
+
 
               {/* Scrollable timeline content */}
               <div className="h-full overflow-y-auto">
@@ -893,7 +918,7 @@ export default function CineFlowEditor() {
           </div>
 
 
-          
+
           {/* Right Panel - Desktop */}
           {!isMobile && (
             <div
@@ -1025,39 +1050,3 @@ export default function CineFlowEditor() {
   );
 
 }
-
-/**
- * This file is too large and should be split into multiple files for better maintainability.
- * 
- * Suggested breakdown:
- * 
- * 1. Move all state and logic hooks (everything before the return statement) into a custom hook:
- *    - Create a file: `useCineFlowEditor.ts`
- *    - Export a hook: `useCineFlowEditor()`
- *    - Move all state, effects, callbacks, and helper functions there.
- *    - Return all needed state and handlers from the hook.
- * 
- * 2. Keep the main component file (`CineFlowEditor.tsx`) focused on layout and rendering:
- *    - Import and use the custom hook.
- *    - Destructure all state and handlers from the hook.
- *    - Pass them to child components as needed.
- * 
- * 3. Optionally, move the FFmpeg logic to its own utility file:
- *    - Create a file: `ffmpegUtils.ts`
- *    - Export `loadFFmpeg` and any related helpers.
- * 
- * 4. Consider breaking out the mobile/desktop panel render logic into smaller presentational components.
- * 
- * Example usage after refactor:
- * 
- * ```tsx
- * import useCineFlowEditor from './useCineFlowEditor';
- * 
- * export default function CineFlowEditor() {
- *   const editor = useCineFlowEditor();
- *   // ...render using editor.state and editor.handlers
- * }
- * ```
- * 
- * This will make the codebase easier to maintain and extend.
- */
