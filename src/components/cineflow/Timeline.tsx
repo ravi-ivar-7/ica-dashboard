@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { CanvasElementType } from '../../types/cineflow';
-import { Play, Pause, Clock, Layers } from 'lucide-react';
+import { Play, Pause, ChevronLeft, ChevronRight, Clock, Layers, GripVertical } from 'lucide-react';
 
 interface TimelineProps {
   elements: CanvasElementType[];
@@ -30,6 +30,8 @@ const Timeline: React.FC<TimelineProps> = ({
   showLayerPanel = true
 }) => {
   const timelineRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const layerPanelRef = useRef<HTMLDivElement>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   const [isDraggingElement, setIsDraggingElement] = useState<string | null>(null);
   const [dragType, setDragType] = useState<'move' | 'start' | 'end' | 'layer' | null>(null);
@@ -38,7 +40,10 @@ const Timeline: React.FC<TimelineProps> = ({
   const [startDuration, setStartDuration] = useState(0);
   const [timelineWidth, setTimelineWidth] = useState(0);
   const [customDuration, setCustomDuration] = useState(duration);
-  const [dragOverElementId, setDragOverElementId] = useState<string | null>(null);
+  const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [isResizing, setIsResizing] = useState(false);
+  const [touchDragY, setTouchDragY] = useState(0);
 
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newDuration = Math.max(1, Number(e.target.value));
@@ -57,6 +62,35 @@ const Timeline: React.FC<TimelineProps> = ({
   };
 
   const effectiveDuration = getEffectiveDuration();
+
+  // Utility functions to disable/enable scrolling
+  const disableScrolling = (horizontal: boolean = false, vertical: boolean = false) => {
+    if (containerRef.current) {
+      if (horizontal) {
+        containerRef.current.style.overflowX = 'hidden';
+      }
+      if (vertical) {
+        containerRef.current.style.overflowY = 'hidden';
+      }
+    }
+    
+    // Also disable body scrolling to prevent any interference
+    if (vertical) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+    }
+  };
+
+  const enableScrolling = () => {
+    if (containerRef.current) {
+      containerRef.current.style.overflowX = 'auto';
+      containerRef.current.style.overflowY = 'auto';
+    }
+    
+    // Re-enable body scrolling
+    document.body.style.overflow = '';
+    document.body.style.touchAction = '';
+  };
 
   // Update timeline width on resize
   useEffect(() => {
@@ -93,35 +127,55 @@ const Timeline: React.FC<TimelineProps> = ({
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
   };
 
-  const handlePlayheadMouseDown = (e: React.MouseEvent) => {
+  // Touch and mouse event handlers
+  const getEventPosition = (e: React.MouseEvent | React.TouchEvent) => {
+    if ('touches' in e) {
+      return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    return { x: e.clientX, y: e.clientY };
+  };
+
+  const handlePlayheadStart = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
+    e.preventDefault();
+    
+    const pos = getEventPosition(e);
     setIsDraggingPlayhead(true);
-    setStartPos({ x: e.clientX, y: e.clientY });
+    setStartPos(pos);
+
+    // Disable horizontal scrolling during playhead drag
+    disableScrolling(true, false);
 
     if (timelineRef.current) {
       const rect = timelineRef.current.getBoundingClientRect();
-      const position = Math.max(0, e.clientX - rect.left);
+      const position = Math.max(0, pos.x - rect.left);
       const newTime = positionToTime(position);
       onTimeUpdate(Math.max(0, Math.min(newTime, effectiveDuration)));
     }
   };
 
-  const handleTimelineClick = (e: React.MouseEvent) => {
-    if (!timelineRef.current || isDraggingElement || isDraggingPlayhead) return;
+  const handleTimelineClick = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!timelineRef.current || isDraggingElement || isDraggingPlayhead || isResizing) return;
 
+    const pos = getEventPosition(e);
     const rect = timelineRef.current.getBoundingClientRect();
-    const clickPosition = Math.max(0, e.clientX - rect.left);
+    const clickPosition = Math.max(0, pos.x - rect.left);
     const newTime = positionToTime(clickPosition);
     onTimeUpdate(Math.max(0, Math.min(newTime, effectiveDuration)));
   };
 
-  const handleElementMouseDown = (e: React.MouseEvent, elementId: string, type: 'move' | 'start' | 'end') => {
+  const handleElementStart = (e: React.MouseEvent | React.TouchEvent, elementId: string, type: 'move' | 'start' | 'end') => {
     e.stopPropagation();
     e.preventDefault();
 
+    const pos = getEventPosition(e);
     setIsDraggingElement(elementId);
     setDragType(type);
-    setStartPos({ x: e.clientX, y: e.clientY });
+    setStartPos(pos);
+    setIsResizing(type === 'start' || type === 'end');
+
+    // Disable horizontal scrolling during timeline element operations
+    disableScrolling(true, false);
 
     const element = elements.find(el => el.id === elementId);
     if (element) {
@@ -131,62 +185,99 @@ const Timeline: React.FC<TimelineProps> = ({
     }
   };
 
-  const handleLayerDragStart = (e: React.MouseEvent, elementId: string) => {
+  const handleLayerDragStart = (e: React.MouseEvent | React.TouchEvent, elementId: string) => {
     e.stopPropagation();
     e.preventDefault();
 
     const element = elements.find(el => el.id === elementId);
     if (!element) return;
 
-    setIsDraggingElement(elementId);
+    const pos = getEventPosition(e);
+    setDraggedElementId(elementId);
     setDragType('layer');
-    setStartPos({ x: e.clientX, y: e.clientY });
+    setStartPos(pos);
+    setTouchDragY(pos.y);
+    
+    // Disable vertical scrolling during layer rearrangement
+    disableScrolling(false, true);
+    
     onSelectElement(elementId);
-    document.body.classList.add('dragging-layer');
   };
 
-  const handleDragOver = (e: React.MouseEvent, elementId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
+  // Helper function to get layer index from Y position
+  const getLayerIndexFromY = (y: number) => {
+    if (!layerPanelRef.current) return null;
 
-    if (dragType === 'layer' && isDraggingElement && isDraggingElement !== elementId) {
-      setDragOverElementId(elementId);
-    }
-  };
+    const layerElements = layerPanelRef.current.querySelectorAll('[data-layer-index]');
+    let closestIndex = null;
+    let closestDistance = Infinity;
 
-  const handleDrop = (e: React.MouseEvent, targetElementId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
+    layerElements.forEach((element, index) => {
+      const rect = element.getBoundingClientRect();
+      const elementCenter = rect.top + rect.height / 2;
+      const distance = Math.abs(y - elementCenter);
 
-    if (dragType === 'layer' && isDraggingElement && isDraggingElement !== targetElementId) {
-      const sourceElement = elements.find(el => el.id === isDraggingElement);
-      const targetElement = elements.find(el => el.id === targetElementId);
-
-      if (sourceElement && targetElement) {
-        const targetLayer = targetElement.layer || 0;
-        onUpdateElement(sourceElement.id, { layer: targetLayer });
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
       }
-    }
+    });
 
-    setIsDraggingElement(null);
-    setDragType(null);
-    setDragOverElementId(null);
-    document.body.classList.remove('dragging-layer');
+    return closestIndex;
   };
 
-  const handleDragLeave = (e: React.MouseEvent) => {
+  const handleLayerDragOver = (e: React.MouseEvent | React.TouchEvent, index: number) => {
     e.preventDefault();
-    setDragOverElementId(null);
+    e.stopPropagation();
+
+    if (draggedElementId && dragType === 'layer') {
+      setDragOverIndex(index);
+    }
   };
 
-  // Handle mouse move and mouse up
+  const handleLayerDrop = (e: React.MouseEvent | React.TouchEvent, dropIndex: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!draggedElementId || dragType !== 'layer') return;
+
+    const draggedElement = elements.find(el => el.id === draggedElementId);
+    if (!draggedElement) return;
+
+    // Create new layer order
+    const sortedElements = [...elements].sort((a, b) => {
+      const layerA = a.layer || 0;
+      const layerB = b.layer || 0;
+      return layerB - layerA;
+    });
+
+    // Remove dragged element from its current position
+    const filteredElements = sortedElements.filter(el => el.id !== draggedElementId);
+    
+    // Insert at new position
+    filteredElements.splice(dropIndex, 0, draggedElement);
+
+    // Update layer values for all elements
+    filteredElements.forEach((element, index) => {
+      const newLayer = filteredElements.length - index - 1;
+      onUpdateElement(element.id, { layer: newLayer });
+    });
+
+    setDraggedElementId(null);
+    setDragOverIndex(null);
+    setDragType(null);
+  };
+
+  // Handle mouse/touch move and end
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      const pos = 'touches' in e ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : { x: e.clientX, y: e.clientY };
+
       if (isDraggingPlayhead) {
         if (!timelineRef.current) return;
 
         const rect = timelineRef.current.getBoundingClientRect();
-        const position = Math.max(0, e.clientX - rect.left);
+        const position = Math.max(0, pos.x - rect.left);
         const newTime = positionToTime(position);
         onTimeUpdate(Math.max(0, Math.min(newTime, effectiveDuration)));
       } else if (isDraggingElement && dragType && dragType !== 'layer') {
@@ -197,12 +288,12 @@ const Timeline: React.FC<TimelineProps> = ({
           if (!timelineRef.current) return;
 
           const rect = timelineRef.current.getBoundingClientRect();
-          const position = Math.max(0, e.clientX - rect.left);
+          const position = Math.max(0, pos.x - rect.left);
           let newTime = positionToTime(position - timeToPosition(element.duration) / 2);
           newTime = Math.max(0, Math.min(newTime, effectiveDuration - element.duration));
           onUpdateElement(isDraggingElement, { startTime: newTime });
         } else if (dragType === 'start') {
-          const deltaPos = e.clientX - startPos.x;
+          const deltaPos = pos.x - startPos.x;
           const deltaTime = positionToTime(Math.abs(deltaPos)) * (deltaPos < 0 ? -1 : 1);
 
           let newStartTime = Math.max(0, startTime + deltaTime);
@@ -218,7 +309,7 @@ const Timeline: React.FC<TimelineProps> = ({
             duration: newDuration
           });
         } else if (dragType === 'end') {
-          const deltaPos = e.clientX - startPos.x;
+          const deltaPos = pos.x - startPos.x;
           const deltaTime = positionToTime(Math.abs(deltaPos)) * (deltaPos < 0 ? -1 : 1);
 
           let newDuration = Math.max(0.1, startDuration + deltaTime);
@@ -227,30 +318,59 @@ const Timeline: React.FC<TimelineProps> = ({
 
           onUpdateElement(isDraggingElement, { duration: newDuration });
         }
+      } else if (draggedElementId && dragType === 'layer') {
+        // Handle layer drag for touch
+        setTouchDragY(pos.y);
+        const layerIndex = getLayerIndexFromY(pos.y);
+        if (layerIndex !== null) {
+          setDragOverIndex(layerIndex);
+        }
       }
     };
 
-    const handleMouseUp = () => {
+    const handleEnd = (e: MouseEvent | TouchEvent) => {
+      // Handle layer drop for touch
+      if (draggedElementId && dragType === 'layer') {
+        const pos = 'touches' in e && e.changedTouches ? 
+          { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY } : 
+          'touches' in e ? { x: e.touches[0]?.clientX || touchDragY, y: e.touches[0]?.clientY || touchDragY } :
+          { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY };
+
+        const layerIndex = getLayerIndexFromY(pos.y);
+        if (layerIndex !== null) {
+          handleLayerDrop(e as any, layerIndex);
+        }
+      }
+
       setIsDraggingPlayhead(false);
       setIsDraggingElement(null);
       setDragType(null);
-      setDragOverElementId(null);
-      document.body.classList.remove('dragging-layer');
+      setDraggedElementId(null);
+      setDragOverIndex(null);
+      setIsResizing(false);
+      setTouchDragY(0);
+
+      // Re-enable all scrolling
+      enableScrolling();
     };
 
-    if (isDraggingPlayhead || isDraggingElement) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
+    if (isDraggingPlayhead || isDraggingElement || draggedElementId) {
+      document.addEventListener('mousemove', handleMove);
+      document.addEventListener('mouseup', handleEnd);
+      document.addEventListener('touchmove', handleMove, { passive: false });
+      document.addEventListener('touchend', handleEnd);
     }
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.classList.remove('dragging-layer');
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleEnd);
+      document.removeEventListener('touchmove', handleMove);
+      document.removeEventListener('touchend', handleEnd);
     };
   }, [
     isDraggingPlayhead,
     isDraggingElement,
+    draggedElementId,
     dragType,
     startPos,
     startTime,
@@ -259,7 +379,8 @@ const Timeline: React.FC<TimelineProps> = ({
     effectiveDuration,
     onTimeUpdate,
     onUpdateElement,
-    timelineWidth
+    timelineWidth,
+    touchDragY
   ]);
 
   const sortedElements = [...elements].sort((a, b) => {
@@ -276,13 +397,13 @@ const Timeline: React.FC<TimelineProps> = ({
   }
 
   return (
-    <div className="flex flex-col bg-gray-900/90 border-t border-white/10  ">
-      {/* 1. TOP HEADER - STICKY BOTH VERTICALLY AND HORIZONTALLY */}
-      <div className="   flex items-center justify-between p-2 border-b border-white/10 flex-shrink-0 bg-gray-900/95 backdrop-blur-sm">
+    <div className="flex flex-col bg-gray-900/90 border-t border-white/10">
+      {/* TOP HEADER */}
+      <div className="flex items-center justify-between p-2 border-b border-white/10 flex-shrink-0 bg-gray-900/95 backdrop-blur-sm">
         <div className="flex items-center space-x-2">
           <button
             onClick={onPlayPause}
-            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors touch-manipulation"
           >
             {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
           </button>
@@ -309,46 +430,57 @@ const Timeline: React.FC<TimelineProps> = ({
         </div>
       </div>
 
-      {/* 2. MAIN SCROLLABLE AREA - LAYERS AND TRACKS SCROLL TOGETHER */}
-      <div className="flex-1 overflow-auto">
+      {/* MAIN SCROLLABLE AREA */}
+      <div className="flex-1 overflow-auto" ref={containerRef}>
         <div className="flex" style={{ minWidth: `${Math.max(timelineWidth, 800)}px` }}>
 
-          {/* 3. LAYERS PANEL - SCROLLS WITH TRACKS */}
+          {/* LAYERS PANEL */}
           {showLayerPanel && (
             <div className="w-48 flex-shrink-0 border-r border-white/10 bg-gray-900/80">
-              {/* Layer Panel Header - Sticky within the scrollable area */}
-              <div className="sticky top-0 p-2 border-b border-white/10 bg-gray-900/90 ">
+              <div className="sticky top-0 p-2 border-b border-white/10 bg-gray-900/90">
                 <h3 className="text-white font-bold text-xs flex items-center">
                   <Layers className="w-3 h-3 mr-1" />
                   Layers ({elements.length})
                 </h3>
               </div>
 
-              {/* Layer Panel Content */}
-              <div className="p-2 space-y-1">
-                {sortedElements.map(element => (
+              <div className="p-1 mx-1 space-y-1" ref={layerPanelRef}>
+                {sortedElements.map((element, index) => (
                   <div
                     key={element.id}
-                    data-id={element.id}
-                    className={`flex items-center p-2 h-8 rounded-lg text-xs cursor-grab active:cursor-grabbing transition-colors ${selectedElementId === element.id
-                      ? 'bg-amber-500/20 border border-amber-500/50'
-                      : dragOverElementId === element.id
+                    data-layer-index={index}
+                    className={`flex items-center rounded-lg text-xs transition-all ${
+                      selectedElementId === element.id
+                        ? 'bg-amber-500/20 border border-amber-500/50'
+                        : dragOverIndex === index
                         ? 'bg-blue-500/20 border border-blue-500/50'
                         : 'hover:bg-white/5 border border-transparent'
-                      }`}
-                    onClick={() => onSelectElement(element.id)}
-                    onMouseDown={(e) => handleLayerDragStart(e, element.id)}
-                    onMouseOver={(e) => handleDragOver(e, element.id)}
-                    onMouseLeave={handleDragLeave}
-                    onMouseUp={(e) => handleDrop(e, element.id)}
+                    } ${draggedElementId === element.id ? 'opacity-50' : ''}`}
+                    onMouseOver={(e) => handleLayerDragOver(e, index)}
+                    onMouseUp={(e) => handleLayerDrop(e, index)}
                   >
-                    <div className="flex items-center space-x-2 overflow-hidden w-full">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${element.type === 'image' ? 'bg-blue-500' :
+                    {/* Drag Handle */}
+                    <div
+                      className=" px-1 cursor-grab active:cursor-grabbing hover:bg-white/10 rounded-l-lg touch-manipulation"
+                      onMouseDown={(e) => handleLayerDragStart(e, element.id)}
+                      onTouchStart={(e) => handleLayerDragStart(e, element.id)}
+                    >
+                      <GripVertical className={` h-3 w-3 text-white/60 ${
+                        element.type === 'image' ? 'bg-blue-500' :
                         element.type === 'video' ? 'bg-red-500' :
-                          element.type === 'audio' ? 'bg-purple-500' :
-                            element.type === 'text' ? 'bg-green-500' :
-                              'bg-amber-500'
-                        }`}></span>
+                        element.type === 'audio' ? 'bg-purple-500' :
+                        element.type === 'text' ? 'bg-green-500' :
+                        'bg-amber-500'
+                      }`
+
+                      } />
+                    </div>
+
+                    {/* Layer Content */}
+                    <div
+                      className="flex items-center overflow-hidden flex-1 p-1 cursor-pointer"
+                      onClick={() => onSelectElement(element.id)}
+                    > 
                       <span className="text-white/80 truncate">
                         {element.name || `${element.type} ${element.id.slice(-4)}`}
                       </span>
@@ -364,11 +496,10 @@ const Timeline: React.FC<TimelineProps> = ({
             </div>
           )}
 
-          {/* 4. TIMELINE CONTENT AREA */}
+          {/* TIMELINE CONTENT AREA */}
           <div className="flex-1 flex flex-col min-w-0">
-
-            {/* TIMELINE RULER - STICKY VERTICALLY, SCROLLS HORIZONTALLY */}
-            <div className="sticky top-0 h-8 border-b border-white/10 relative flex-shrink-0 bg-gray-900/90  ">
+            {/* TIMELINE RULER */}
+            <div className="sticky top-0 h-8 border-b border-white/10 relative flex-shrink-0 bg-gray-900/90">
               <div className="absolute inset-0">
                 {timelineMarkers.map((time) => (
                   <div
@@ -389,32 +520,30 @@ const Timeline: React.FC<TimelineProps> = ({
               className="flex-1 relative"
               ref={timelineRef}
               onClick={handleTimelineClick}
+              onTouchStart={handleTimelineClick}
               style={{ minHeight: '120px' }}
             >
               {/* Playhead */}
               <div
-                className="absolute top-0 bottom-0 w-0.5 bg-amber-500   pointer-events-none"
+                className="absolute top-0 bottom-0 w-0.5 bg-amber-500 pointer-events-none"
                 style={{ left: `${timeToPosition(currentTime)}px` }}
               >
-                {/* Time Display */}
-                <div className="absolute -top-5 left-1/2 transform -translate-x-1/2  ">
-                  <div className="px-2 py-0.5 bg-gray-900 text-white  text-[10px] rounded shadow-lg border border-amber-500">
+                <div className="absolute -top-5 left-1/2 transform -translate-x-1/2">
+                  <div className="  py-0.5 bg-gray-900 text-white text-[10px] rounded shadow-lg border border-amber-500">
                     {formatTime(currentTime)}
                   </div>
                 </div>
 
-
-                {/* Playhead Drag Handle */}
                 <div
-                  className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-4 h-2 bg-amber-500    cursor-ew-resize pointer-events-auto"
-                  onMouseDown={handlePlayheadMouseDown}
+                  className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-4 h-2 bg-amber-500 cursor-ew-resize pointer-events-auto touch-manipulation"
+                  onMouseDown={handlePlayheadStart}
+                  onTouchStart={handlePlayheadStart}
                 />
               </div>
 
-
               {/* Element timelines */}
-              <div className="p-2 space-y-1">
-                {sortedElements.map((element, _) => {
+              <div className="  space-y-1">
+                {sortedElements.map((element) => {
                   const isVisible = currentTime >= element.startTime &&
                     currentTime < (element.startTime + element.duration);
 
@@ -424,27 +553,27 @@ const Timeline: React.FC<TimelineProps> = ({
                   return (
                     <div
                       key={element.id}
-                      data-id={element.id}
-                      className="relative h-8 w-full"
+                      className="relative h-7 w-full"
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectElement(element.id);
                       }}
                     >
                       <div
-                        className={`absolute h-8 rounded-lg flex items-center px-2 cursor-grab active:cursor-grabbing transition-all ${element.type === 'image' ? 'bg-blue-500/70 hover:bg-blue-500/80' :
+                        className={`absolute h-6   flex items-center px-2 cursor-grab active:cursor-grabbing transition-all touch-manipulation ${
+                          element.type === 'image' ? 'bg-blue-500/70 hover:bg-blue-500/80' :
                           element.type === 'video' ? 'bg-red-500/70 hover:bg-red-500/80' :
-                            element.type === 'audio' ? 'bg-purple-500/70 hover:bg-purple-500/80' :
-                              element.type === 'text' ? 'bg-green-500/70 hover:bg-green-500/80' :
-                                'bg-amber-500/70 hover:bg-amber-500/80'
-                          } ${selectedElementId === element.id ? 'ring-2 ring-amber-400' : ''
-                          } ${isVisible ? 'opacity-100' : 'opacity-70'
-                          }`}
+                          element.type === 'audio' ? 'bg-purple-500/70 hover:bg-purple-500/80' :
+                          element.type === 'text' ? 'bg-green-500/70 hover:bg-green-500/80' :
+                          'bg-amber-500/70 hover:bg-amber-500/80'
+                        } ${selectedElementId === element.id ? 'ring-2 ring-amber-400' : ''
+                        } ${isVisible ? 'opacity-100' : 'opacity-70'}`}
                         style={{
                           left: `${elementLeft}px`,
                           width: `${elementWidth}px`
                         }}
-                        onMouseDown={(e) => handleElementMouseDown(e, element.id, 'move')}
+                        onMouseDown={(e) => handleElementStart(e, element.id, 'move')}
+                        onTouchStart={(e) => handleElementStart(e, element.id, 'move')}
                       >
                         <span className="text-white text-xs truncate flex-1 pointer-events-none">
                           {element.name || `${element.type} ${element.id.slice(-4)}`}
@@ -452,12 +581,14 @@ const Timeline: React.FC<TimelineProps> = ({
 
                         {/* Resize handles */}
                         <div
-                          className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize bg-black/20 opacity-0 hover:opacity-100 transition-opacity rounded-l-lg"
-                          onMouseDown={(e) => handleElementMouseDown(e, element.id, 'start')}
+                          className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize bg-black/20 opacity-0 hover:opacity-100 transition-opacity rounded-l-lg touch-manipulation"
+                          onMouseDown={(e) => handleElementStart(e, element.id, 'start')}
+                          onTouchStart={(e) => handleElementStart(e, element.id, 'start')}
                         ></div>
                         <div
-                          className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize bg-black/20 opacity-0 hover:opacity-100 transition-opacity rounded-r-lg"
-                          onMouseDown={(e) => handleElementMouseDown(e, element.id, 'end')}
+                          className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize bg-black/20 opacity-0 hover:opacity-100 transition-opacity rounded-r-lg touch-manipulation"
+                          onMouseDown={(e) => handleElementStart(e, element.id, 'end')}
+                          onTouchStart={(e) => handleElementStart(e, element.id, 'end')}
                         ></div>
                       </div>
                     </div>
