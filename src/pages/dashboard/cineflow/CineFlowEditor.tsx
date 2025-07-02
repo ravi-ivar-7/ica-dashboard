@@ -15,7 +15,7 @@ import Canvas from '../../../components/cineflow/Canvas';
 import Timeline from '../../../components/cineflow/Timeline';
 import PropertiesPanel from '../../../components/cineflow/PropertiesPanel';
 import TopToolbar from '../../../components/cineflow/TopToolbar';
-import ExportModal from '../../../components/cineflow/ExportModal';
+import ExportModal from '../../../components/cineflow/ExportIndex';
 
 // Initialize FFmpeg
 let ffmpeg: any = null;
