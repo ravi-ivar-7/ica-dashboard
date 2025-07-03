@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Palette, Upload, Search, Zap, Download, Trash2, Plus, X, Check, Clock, Eye, Heart, Star, ArrowRight, History } from 'lucide-react';
-import { Style } from '../../types/dashboard';
-import { mockApi } from '../../services/api';
-import ErrorBoundary from '../../components/dashboard/ErrorBoundary';
-import LoadingSpinner from '../../components/dashboard/LoadingSpinner';
-import TrainNewStyle from '../../components/dashboard/TrainNewStyle';
-import { toast } from '../../contexts/ToastContext';
+import { Style } from '@/types/dashboard';
+import { mockApi } from '@/services/api';
+import ErrorBoundary from '@/components/dashboard/ErrorBoundary';
+import LoadingSpinner from '@/components/global/LoadingSpinner';
+import TrainNewStyle from '@/components/dashboard/TrainNewStyle';
+import { toast } from '@/contexts/ToastContext';
 
-export default function DashboardStyles() {
+export default function DashboardTrainers() {
   // State for styles
   const [styles, setStyles] = useState<Style[]>([]);
   const [loading, setLoading] = useState(true);

@@ -1,17 +1,17 @@
 import React from 'react';
-import Hero from '../components/Hero';
-import UseCasesShowcase from '../components/UseCasesShowcase';
-import FeaturedModels from '../components/FeaturedModels';
-import WhatIsOpenModel from '../components/WhatIsOpenModel';
-import HowItWorks from '../components/HowItWorks';
-import WhoItsFor from '../components/WhoItsFor';
-import WhyOpenModel from '../components/WhyOpenModel';
-import CoreFeatures from '../components/CoreFeatures';
-import LoRAArchitecture from '../components/LoRAArchitecture';
-import OutputGallery from '../components/OutputGallery';
-import SocialProof from '../components/SocialProof';
-import PremiumOffer from '../components/PremiumOffer';
-import FinalCTA from '../components/FinalCTA';
+import Hero from '@/components/home/Hero';
+import UseCasesShowcase from '@/components/home/UseCasesShowcase';
+import FeaturedModels from '@/components/home/FeaturedModels';
+import WhatIsOpenModel from '@/components/home/WhatIsOpenModel';
+import HowItWorks from '@/components/home/HowItWorks';
+import WhoItsFor from '@/components/home/WhoItsFor';
+import WhyOpenModel from '@/components/home/WhyOpenModel';
+import CoreFeatures from '@/components/home/CoreFeatures';
+import LoRAArchitecture from '@/components/home/LoRAArchitecture';
+import OutputGallery from '@/components/home/OutputGallery';
+import SocialProof from '@/components/home/SocialProof';
+import PremiumOffer from '@/components/home/PremiumOffer';
+import FinalCTA from '@/components/home/FinalCTA';
 
 export default function Home() {
   return (

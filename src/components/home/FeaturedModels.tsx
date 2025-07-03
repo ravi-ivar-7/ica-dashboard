@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Image, Video, Palette, Brain, Zap, ArrowRight, Star, Users, Clock, Search, Filter, Sparkles } from 'lucide-react';
-import { useConsent } from '../contexts/ConsentContext';
-import { toast } from '../contexts/ToastContext';
+import { useConsent } from '@/contexts/ConsentContext';
+import { toast } from '@/contexts/ToastContext';
 
 const models = [
   {

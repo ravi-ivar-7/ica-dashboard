@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Settings, User, Bell, Shield, CreditCard, Save, Trash2, LogOut, Check, X, Info } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
-import ErrorBoundary from '../../components/dashboard/ErrorBoundary';
-import { toast } from '../../contexts/ToastContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import ErrorBoundary from '../../../components/dashboard/ErrorBoundary';
+import { toast } from '../../../contexts/ToastContext';
 
 // Settings help text definitions
 const settingsHelpText = {
@@ -457,7 +457,7 @@ export default function DashboardSettings() {
 
   return (
     <ErrorBoundary>
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 p-4">
         {/* Settings Navigation */}
         <div className="lg:col-span-1">
           <div className="bg-gradient-to-br from-gray-900/80 to-black/90 backdrop-blur-xl border border-white/20 rounded-xl p-5 shadow-lg">

@@ -2,7 +2,7 @@ import { Video, Sparkles, ChevronRight } from 'lucide-react';
 
 export default function StatsSection({ projects }: { projects: any[] }) {
   return (
-    <div className="bg-gradient-to-br from-gray-900/80 to-black/90 backdrop-blur-xl border border-white/20 rounded-3xl p-4 shadow-lg">
+    <div className="bg-gradient-to-br from-gray-900/80 to-black/90 backdrop-blur-xl border border-white/20 rounded-lg p-4 shadow-lg">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white/5 rounded-xl p-4 border border-white/10">
           <div className="flex items-center space-x-3 mb-2">

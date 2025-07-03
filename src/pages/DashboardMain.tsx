@@ -3,22 +3,20 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import ErrorBoundary from '../components/dashboard/ErrorBoundary';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
-import LoadingSpinner from '../components/dashboard/LoadingSpinner';
+import LoadingSpinner from '../components/global/LoadingSpinner';
 
 // Dashboard Pages
-import DashboardHome from './dashboard/DashboardHome';
-import DashboardGallery from './dashboard/DashboardGallery';
-import DashboardStyles from './dashboard/DashboardStyles';
-import DashboardSettings from './dashboard/DashboardSettings';
+import DashboardHome from './dashboard/main/DashboardHome';
+import DashboardAssets from './dashboard/assets/DashboardAssets';
+import DashboardTrainers from './dashboard/trainers/DashboardTrainers';
+import DashboardSettings from './dashboard/main/DashboardSettings';
 
 // Image Pages
-import DashboardImages from './dashboard/DashboardImages';
 import ImageGenerator from './dashboard/image/ImageGenerator';
 import ImageCanvas from './dashboard/image/ImageCanvas';
 import ImageManager from './dashboard/image/ImageManager';
 
 // Video Pages
-import DashboardVideos from './dashboard/DashboardVideos';
 import VideoGenerator from './dashboard/video/VideoGenerator';
 import VideoEditor from './dashboard/video/VideoEditor';
 import VideoThumbnail from './dashboard/video/VideoThumbnail';
@@ -28,8 +26,10 @@ import VideoManager from './dashboard/video/VideoManager';
 import CineFlowHome from './dashboard/cineflow/CineFlowHome';
 import CineFlowEditor from './dashboard/cineflow/CineFlowEditor';
 
+// Workflow Pages
+import WorkflowHome from './dashboard/workflow/WorkFlowHome';
+
 // Audio Pages
-import DashboardAudio from './dashboard/DashboardAudio';
 import VoiceGenerator from './dashboard/audio/VoiceGenerator';
 import MusicGenerator from './dashboard/audio/MusicGenerator';
 import AudioEditor from './dashboard/audio/AudioEditor';
@@ -45,8 +45,8 @@ export default function DashboardMain() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 1000);
-    
+    }, 2000);
+
     return () => clearTimeout(timer);
   }, []);
 
@@ -69,35 +69,40 @@ export default function DashboardMain() {
         <Routes>
           {/* Main Dashboard */}
           <Route path="/" element={<DashboardHome />} />
-          <Route path="/gallery" element={<DashboardGallery />} />
-          <Route path="/styles" element={<DashboardStyles />} />
+          <Route path="/assets" element={<DashboardAssets />} />
           <Route path="/settings" element={<DashboardSettings />} />
-          
+
+          {/* CineFlow Routes */}
+          <Route path="/cineflow" element={<CineFlowHome />} />
+          <Route path="/cineflow/editor/:id" element={<CineFlowEditor />} />
+
+          {/* Workflow routes */}
+          <Route path="/workflow" element ={<WorkflowHome/>} />
+          <Route path="/workflow/editor/:id" element={<div>Workflow Editor (Coming Soon)</div>} />
+
           {/* Image Routes */}
-          <Route path="/images" element={<DashboardImages />} />
           <Route path="/images/manager" element={<ImageManager />} />
           <Route path="/images/generator" element={<ImageGenerator />} />
           <Route path="/images/canvas" element={<ImageCanvas />} />
-          
+
           {/* Video Routes */}
-          <Route path="/videos" element={<DashboardVideos />} />
           <Route path="/videos/manager" element={<VideoManager />} />
           <Route path="/videos/generator" element={<VideoGenerator />} />
           <Route path="/videos/editor" element={<VideoEditor />} />
           <Route path="/videos/thumbnail" element={<VideoThumbnail />} />
-          
-          {/* CineFlow Routes */}
-          <Route path="/cineflow" element={<CineFlowHome />} />
-          <Route path="/cineflow/editor/:id" element={<CineFlowEditor />} />
-          
+
+
+
           {/* Audio Routes */}
-          <Route path="/audio" element={<DashboardAudio />} />
           <Route path="/audio/manager" element={<AudioManager />} />
           <Route path="/audio/voice" element={<VoiceGenerator />} />
           <Route path="/audio/music" element={<MusicGenerator />} />
           <Route path="/audio/editor" element={<AudioEditor />} />
           <Route path="/audio/visualizer" element={<AudioVisualizer />} />
-          
+
+          {/* Trainers */}
+          <Route path="/trainers/manager" element={<DashboardTrainers />} />
+
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

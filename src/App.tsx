@@ -4,10 +4,10 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ConsentProvider } from './contexts/ConsentContext';
 import { ToastProvider, setGlobalToastFunction, useToast } from './contexts/ToastContext';
 import { BugReportProvider } from './contexts/BugReportContext';
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
-import AuthModal from './components/AuthModal';
-import SupportWidget from './components/SupportWidget';
+import Navbar from '@/components/home/Navbar';
+import Footer from './components/home/Footer';
+import AuthModal from './components/global/AuthModal';
+import SupportWidget from './components/global/SupportWidget';
 
 // Pages
 import Home from './pages/Home';

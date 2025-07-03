@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Image, 
-  Video, 
-  Music, 
-  FolderOpen, 
-  Palette, 
-  Settings, 
-  Menu, 
+import {
+  LayoutDashboard,
+  Image,
+  Video,
+  Music,
+  FolderOpen,
+  Palette,
+  Settings,
+  Menu,
   X,
   Zap,
   ChevronLeft,
@@ -22,7 +22,9 @@ import {
   Radio,
   AudioWaveform,
   Camera,
-  Film
+  Film,
+  Workflow,
+  Brain
 } from 'lucide-react';
 
 // Define the navigation structure with nested items
@@ -34,12 +36,20 @@ const navigationItems = [
     path: '/dashboard',
     gradient: "from-purple-600 to-indigo-600"
   },
-    {
+  {
     id: 'cineflow',
     label: 'CineFlow',
     icon: <Film className="w-5 h-5" />,
     path: '/dashboard/cineflow',
-    gradient: "from-amber-600 to-orange-600"
+    gradient: "from-purple-700 to-pink-600"
+
+  },
+  {
+    id: 'workflow',
+    label: 'Workflow',
+    icon: <Workflow className="w-5 h-5" />,
+    path: '/dashboard/workflow',
+    gradient: "from-amber-600 to-violet-600"
   },
   {
     id: 'images',
@@ -142,17 +152,17 @@ const navigationItems = [
     ]
   },
   {
-    id: 'gallery',
-    label: 'Gallery',
+    id: 'assets',
+    label: 'Assets',
     icon: <FolderOpen className="w-5 h-5" />,
-    path: '/dashboard/gallery',
+    path: '/dashboard/assets',
     gradient: "from-emerald-600 to-teal-600"
   },
   {
-    id: 'styles',
-    label: 'Styles',
-    icon: <Palette className="w-5 h-5" />,
-    path: '/dashboard/styles',
+    id: 'trainers',
+    label: 'Trainers',
+    icon: <Brain className="w-5 h-5" />,
+    path: '/dashboard/trainers/manager',
     gradient: "from-orange-600 to-red-600"
   },
   {
@@ -171,15 +181,15 @@ interface DashboardSidebarProps {
   setIsMobileOpen: (open: boolean) => void;
 }
 
-export default function DashboardSidebar({ 
-  isCollapsed, 
-  setIsCollapsed, 
-  isMobileOpen, 
-  setIsMobileOpen 
+export default function DashboardSidebar({
+  isCollapsed,
+  setIsCollapsed,
+  isMobileOpen,
+  setIsMobileOpen
 }: DashboardSidebarProps) {
   const location = useLocation();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
-  
+
   // Save sidebar state to localStorage
   useEffect(() => {
     localStorage.setItem('sidebar-collapsed', JSON.stringify(isCollapsed));
@@ -196,7 +206,7 @@ export default function DashboardSidebar({
   // Auto-expand the parent of the active route
   useEffect(() => {
     const currentPath = location.pathname;
-    
+
     // Find which parent item should be expanded based on the current path
     navigationItems.forEach(item => {
       if (item.children && item.children.some(child => currentPath.startsWith(child.path))) {
@@ -217,10 +227,10 @@ export default function DashboardSidebar({
   const toggleExpand = (itemId: string, event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    
-    setExpandedItems(prev => 
-      prev.includes(itemId) 
-        ? prev.filter(id => id !== itemId) 
+
+    setExpandedItems(prev =>
+      prev.includes(itemId)
+        ? prev.filter(id => id !== itemId)
         : [...prev, itemId]
     );
   };
@@ -242,14 +252,14 @@ export default function DashboardSidebar({
     <>
       {/* Mobile Overlay */}
       {isMobileOpen && (
-        <div 
+        <div
           className="lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-      <aside 
+      <aside
         className={`
           fixed lg:static inset-y-0 left-0 z-50 
           ${isCollapsed ? 'w-16' : 'w-64'} 
@@ -260,7 +270,7 @@ export default function DashboardSidebar({
         `}
         aria-expanded={!isCollapsed}
         aria-controls="sidebar-content"
-      > 
+      >
 
         <div className="relative z-10 flex flex-col h-full">
           {/* Header */}
@@ -276,7 +286,7 @@ export default function DashboardSidebar({
                 </div>
               </Link>
             )}
-            
+
             {isCollapsed && (
               <div className="mx-auto">
                 <div className="bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 p-2 rounded-lg shadow-lg">
@@ -310,7 +320,7 @@ export default function DashboardSidebar({
               const isActive = isPathActive(item.path);
               const isExpanded = expandedItems.includes(item.id);
               const hasChildren = item.children && item.children.length > 0;
-              
+
               return (
                 <div key={item.id} className="flex flex-col">
                   <Link
@@ -324,8 +334,8 @@ export default function DashboardSidebar({
                     }}
                     className={`
                       group flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-300
-                      ${isActive 
-                        ? `bg-gradient-to-r ${item.gradient} shadow-md scale-105 text-white` 
+                      ${isActive
+                        ? `bg-gradient-to-r ${item.gradient} shadow-md scale-105 text-white`
                         : 'text-white/70 hover:text-white hover:bg-white/10 hover:scale-105'
                       }
                       ${isCollapsed ? 'justify-center' : ''}
@@ -338,35 +348,35 @@ export default function DashboardSidebar({
                     `}>
                       {item.icon}
                     </div>
-                    
+
                     {!isCollapsed && (
                       <>
                         <span className="font-medium text-sm tracking-tight flex-1">
                           {item.label}
                         </span>
-                        
+
                         {hasChildren && (
-                          <button 
+                          <button
                             onClick={(e) => toggleExpand(item.id, e)}
                             className="text-white/60 hover:text-white"
                           >
                             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                           </button>
                         )}
-                        
+
                         {isActive && !hasChildren && (
                           <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
                         )}
                       </>
                     )}
                   </Link>
-                  
+
                   {/* Nested Children */}
                   {!isCollapsed && hasChildren && isExpanded && (
                     <div className="ml-7 mt-1 space-y-1 border-l border-white/10 pl-2">
                       {item.children?.map((child) => {
                         const isChildActive = isChildPathActive(child.path);
-                        
+
                         return (
                           <Link
                             key={child.id}
@@ -374,8 +384,8 @@ export default function DashboardSidebar({
                             onClick={handleNavClick}
                             className={`
                               group flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-300
-                              ${isChildActive 
-                                ? `bg-white/10 text-white` 
+                              ${isChildActive
+                                ? `bg-white/10 text-white`
                                 : 'text-white/60 hover:text-white hover:bg-white/5'
                               }
                             `}
@@ -386,11 +396,11 @@ export default function DashboardSidebar({
                             `}>
                               {child.icon}
                             </div>
-                            
+
                             <span className="font-medium text-xs tracking-tight">
                               {child.label}
                             </span>
-                            
+
                             {isChildActive && (
                               <div className="ml-auto w-1 h-1 bg-white rounded-full animate-pulse"></div>
                             )}

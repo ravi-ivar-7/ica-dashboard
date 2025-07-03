@@ -3,7 +3,7 @@ import { Mic, Upload, Search, Zap, Download, Trash2, Play, Pause, Volume2, Setti
 import { Asset, Model } from '../../../types/dashboard';
 import { mockApi } from '../../../services/api';
 import ErrorBoundary from '../../../components/dashboard/ErrorBoundary';
-import LoadingSpinner from '../../../components/dashboard/LoadingSpinner';
+import LoadingSpinner from '../../../components/global/LoadingSpinner';
 import ModelSelector from '../../../components/dashboard/ModelSelector';
 import ParameterControl from '../../../components/dashboard/ParameterControl';
 import { toast } from '../../../contexts/ToastContext';

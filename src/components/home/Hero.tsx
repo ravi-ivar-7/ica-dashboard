@@ -1,7 +1,7 @@
 import React from 'react';
 import { Play, Sparkles, ArrowRight, Zap, Image, Video } from 'lucide-react';
-import { useConsent } from '../contexts/ConsentContext';
-import { toast } from '../contexts/ToastContext';
+import { useConsent } from '@/contexts/ConsentContext';
+import { toast } from '@/contexts/ToastContext';
 
 export default function Hero() {
   const { openConsentModal } = useConsent();

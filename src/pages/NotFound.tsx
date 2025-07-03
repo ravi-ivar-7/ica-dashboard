@@ -66,21 +66,21 @@ export default function NotFound() {
             <span className="text-[12rem] sm:text-[16rem] lg:text-[20rem] font-black text-transparent bg-gradient-to-r from-indigo-400 via-purple-500 to-cyan-600 bg-clip-text leading-none animate-pulse">
               404
             </span>
-            
+
             {/* Floating icons around 404 */}
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="relative w-full h-full">
-                <div className="absolute top-1/4 left-1/4 animate-bounce delay-300">
+                <div className="absolute top-1/2 left-1/4 ">
                   <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-3 rounded-full shadow-lg">
                     <Search className="w-6 h-6 text-white" />
                   </div>
                 </div>
-                <div className="absolute top-1/3 right-1/4 animate-bounce delay-700">
+                <div className="absolute top-1/3 right-1/4  ">
                   <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-3 rounded-full shadow-lg">
                     <Compass className="w-6 h-6 text-white" />
                   </div>
                 </div>
-                <div className="absolute bottom-1/4 left-1/3 animate-bounce delay-1000">
+                <div className="absolute bottom-1/4 left-1/3  ">
                   <div className="bg-gradient-to-r from-emerald-500 to-teal-500 p-3 rounded-full shadow-lg">
                     <Zap className="w-6 h-6 text-white" />
                   </div>
@@ -95,9 +95,9 @@ export default function NotFound() {
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-6 leading-tight">
             Page Not Found
           </h1>
-          
+
           <p className="text-xl sm:text-2xl text-white/80 max-w-3xl mx-auto leading-relaxed mb-8">
-            Oops! The page you're looking for seems to have wandered off into the digital void. 
+            Oops! The page you're looking for seems to have wandered off into the digital void.
             Let's get you back on track.
           </p>
 
@@ -131,7 +131,7 @@ export default function NotFound() {
             <Home className="w-5 h-5" />
             <span>Go Home</span>
           </Link>
-          
+
           <button
             onClick={() => window.history.back()}
             className="group bg-gradient-to-r from-gray-800/60 to-gray-900/60 backdrop-blur-xl border-2 border-white/30 text-white font-black px-8 py-4 rounded-2xl hover:bg-gradient-to-r hover:from-gray-700/70 hover:to-gray-800/70 transition-all duration-300 hover:border-white/50 flex items-center space-x-3"
@@ -144,7 +144,7 @@ export default function NotFound() {
         {/* Popular pages */}
         <div className="bg-gradient-to-br from-gray-900/60 to-black/80 backdrop-blur-xl border border-white/20 rounded-3xl p-8 sm:p-12 max-w-5xl mx-auto">
           <h3 className="text-3xl font-black text-white mb-8">Popular Pages</h3>
-          
+
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
             {popularPages.map((page, index) => (
               <Link
@@ -162,18 +162,18 @@ export default function NotFound() {
         </div>
 
         {/* Help section */}
-        <div className="mt-16">
+        <div className="my-8">
           <div className="bg-gradient-to-br from-indigo-600/20 to-purple-600/20 backdrop-blur-xl border border-indigo-500/30 rounded-2xl p-8 max-w-3xl mx-auto">
             <div className="flex items-center justify-center space-x-3 mb-6">
               <Star className="w-8 h-8 text-indigo-400" />
               <h3 className="text-2xl font-black text-white">Still Lost?</h3>
             </div>
-            
+
             <p className="text-white/70 text-lg mb-6 leading-relaxed">
-              Our support team is here to help you find what you're looking for. 
+              Our support team is here to help you find what you're looking for.
               We're available 24/7 to assist with any questions.
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 to="/contact"
@@ -181,7 +181,7 @@ export default function NotFound() {
               >
                 <span>Contact Support</span>
               </Link>
-              
+
               <Link
                 to="/learn"
                 className="border-2 border-white/20 text-white font-semibold px-6 py-3 rounded-xl hover:bg-white/5 transition-all duration-300 backdrop-blur-sm flex items-center space-x-2 justify-center"
@@ -192,21 +192,6 @@ export default function NotFound() {
           </div>
         </div>
 
-        {/* Fun stats */}
-        <div className="mt-12 flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-8 text-white/50">
-          <div className="flex items-center space-x-2">
-            <Users className="w-5 h-5" />
-            <span className="font-semibold">50,000+ happy users</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Zap className="w-5 h-5" />
-            <span className="font-semibold">1M+ models created</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Star className="w-5 h-5 text-yellow-400" />
-            <span className="font-semibold">4.9/5 rating</span>
-          </div>
-        </div>
       </div>
     </div>
   );

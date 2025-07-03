@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { Asset } from '../../types/dashboard';
 import { mockApi } from '../../services/api';
-import LoadingSpinner from './LoadingSpinner';
+import LoadingSpinner from '../global/LoadingSpinner';
 
 interface MediaUploaderProps {
   onFilesAccepted: (files: File[]) => void;

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Zap, ChevronDown, Menu, X, Home, BookOpen, Settings, Gift, Video, Brain, Target, Mail, Scissors, Palette, ArrowRight, Star, Users, Clock, User, HelpCircle, Phone, LogOut, Image, Music, Bug } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { useBugReport } from '../contexts/BugReportContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useBugReport } from '@/contexts/BugReportContext';
 
 const imageModels = [
   {

@@ -3,7 +3,7 @@ import { Image, Upload, Search, Filter, Grid, List, Download, Trash2, Edit, Plus
 import { Asset } from '../../../types/dashboard';
 import { mockApi } from '../../../services/api';
 import ErrorBoundary from '../../../components/dashboard/ErrorBoundary';
-import LoadingSpinner from '../../../components/dashboard/LoadingSpinner';
+import LoadingSpinner from '../../../components/global/LoadingSpinner';
 import AssetCard from '../../../components/dashboard/AssetCard';
 import FileUploader from '../../../components/dashboard/FileUploader';
 import { toast } from '../../../contexts/ToastContext';

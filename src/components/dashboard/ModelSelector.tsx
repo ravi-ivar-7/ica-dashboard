@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, Search, Zap } from 'lucide-react';
 import { Model } from '../../types/dashboard';
-import LoadingSpinner from './LoadingSpinner';
+import LoadingSpinner from '../global/LoadingSpinner';
 
 interface ModelSelectorProps {
   type: 'image' | 'video' | 'audio';

@@ -3,7 +3,7 @@ import { Image, Upload, Search, Zap, Download, Trash2, X, Check, Settings, Info 
 import { Asset, Model } from '../../../types/dashboard';
 import { mockApi } from '../../../services/api';
 import ErrorBoundary from '../../../components/dashboard/ErrorBoundary';
-import LoadingSpinner from '../../../components/dashboard/LoadingSpinner';
+import LoadingSpinner from '../../../components/global/LoadingSpinner';
 import FileUploader from '../../../components/dashboard/FileUploader';
 import ModelSelector from '../../../components/dashboard/ModelSelector';
 import ParameterControl from '../../../components/dashboard/ParameterControl';

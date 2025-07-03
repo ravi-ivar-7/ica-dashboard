@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, RefreshCw, Home, ArrowLeft, Mail, Bug, X, Send, User, MessageSquare, Code, Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { toast } from '../contexts/ToastContext';
+import { toast } from '@/contexts/ToastContext';
 
 interface ErrorPageProps {
   error?: Error;
@@ -102,7 +102,7 @@ const BugReportModal: React.FC<BugReportModalProps> = ({ isOpen, onClose, error,
       />
       
       {/* Modal - Reduced size */}
-      <div className="relative bg-gradient-to-br from-gray-900/95 to-black/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-black/50 w-full max-w-3xl max-h-[80vh] overflow-hidden">
+      <div className="p-6 relative bg-gradient-to-br from-gray-900/95 to-black/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-black/50 w-full max-w-3xl max-h-[80vh] overflow-hidden">
         {/* Background elements */}
         <div className="absolute inset-0">
           <div className="absolute top-10 left-10 w-32 h-32 bg-red-600/20 rounded-full blur-3xl animate-pulse"></div>
@@ -313,7 +313,7 @@ export default function ErrorPage({
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-900 relative overflow-hidden flex items-center justify-center">
+      <div className="pt-4 min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-900 relative overflow-hidden flex items-center justify-center">
         {/* Animated background elements */}
         <div className="absolute inset-0">
           <div className="absolute top-20 left-20 w-96 h-96 bg-red-500/20 rounded-full blur-3xl animate-pulse"></div>
@@ -337,7 +337,7 @@ export default function ErrorPage({
           ))}
         </div>
 
-        <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 text-center">
+        <div className="relative z-10 max-w-4xl mx-auto px-2 sm:px-6 text-center">
           {/* Error icon */}
           <div className="mb-8">
             <div className="bg-gradient-to-r from-red-500 to-orange-600 p-6 rounded-full inline-block shadow-2xl animate-pulse">
@@ -347,7 +347,7 @@ export default function ErrorPage({
 
           {/* Error code */}
           <div className="mb-6">
-            <span className="text-8xl sm:text-9xl lg:text-[12rem] font-black text-transparent bg-gradient-to-r from-red-400 via-orange-500 to-yellow-600 bg-clip-text leading-none">
+            <span className="text-6xl sm:text-9xl lg:text-[12rem] font-black text-transparent bg-gradient-to-r from-red-400 via-orange-500 to-yellow-600 bg-clip-text leading-none">
               {errorCode}
             </span>
           </div>
@@ -402,7 +402,7 @@ export default function ErrorPage({
           </div>
 
           {/* Help section */}
-          <div className="bg-gradient-to-br from-gray-900/60 to-black/80 backdrop-blur-xl border border-white/20 rounded-3xl p-8 sm:p-12 max-w-3xl mx-auto">
+          <div className="bg-gradient-to-br from-gray-900/60 to-black/80 backdrop-blur-xl border border-white/20 rounded-3xl p-4 sm:p-6 max-w-3xl mx-auto">
             <h3 className="text-2xl font-black text-white mb-6">Need Help?</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -437,7 +437,7 @@ export default function ErrorPage({
           </div>
 
           {/* Status indicator */}
-          <div className="mt-12 flex items-center justify-center space-x-4 text-white/50">
+          <div className="mt-12 mb-4 flex items-center justify-center space-x-4 text-white/50">
             <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
             <span className="text-sm">Error ID: {Date.now().toString(36).toUpperCase()}</span>
             <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>

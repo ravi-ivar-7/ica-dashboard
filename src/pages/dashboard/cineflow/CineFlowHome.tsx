@@ -143,7 +143,7 @@ export default function CineFlowHome() {
   // Handle opening a project in the editor
   const handleOpenProject = (project: CineFlowProject) => {
     navigate(`/dashboard/cineflow/editor/${project.id}`, {
-      state: { project }
+      state: { project , imported: false, metadata: { source: 'existing' } }
     });
   };
 
@@ -151,7 +151,7 @@ export default function CineFlowHome() {
     <ErrorBoundary>
       <div className="space-y-6 p-2 md:p-4">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between bg-gradient-to-br from-gray-900/80 to-black/90 backdrop-blur-xl border border-white/20 rounded-3xl p-4 shadow-lg">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between bg-gradient-to-br from-gray-900/80 to-black/90 backdrop-blur-xl border border-white/20 rounded-lg p-4 shadow-lg">
           <div>
             <h1 className="text-3xl font-black text-white mb-2 flex items-center">
               <Film className="w-8 h-8 mr-3 text-amber-400" />
@@ -165,7 +165,7 @@ export default function CineFlowHome() {
           <div className="mt-4 lg:mt-0 flex flex-wrap gap-3">
             <button
               onClick={() => setShowNewProjectModal(true)}
-              className="bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-black font-black px-6 py-2.5 rounded-xl hover:scale-105 transition-all duration-300 shadow-lg flex items-center space-x-2 text-base"
+              className="bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-black font-black px-6 py-2.5 rounded-lg hover:scale-105 transition-all duration-300 shadow-lg flex items-center space-x-2 text-base"
             >
               <Plus className="w-5 h-5" />
               <span>Create New CineFlow</span>
@@ -185,7 +185,7 @@ export default function CineFlowHome() {
         />
 
         {/* Projects Grid/List */}
-        <div className="bg-gradient-to-br from-gray-900/80 to-black/90 backdrop-blur-xl border border-white/20 rounded-3xl p-4 shadow-lg">
+        <div className="bg-gradient-to-br from-gray-900/80 to-black/90 backdrop-blur-xl border border-white/20 rounded-lg p-4 shadow-lg">
           {filteredProjects.length === 0 ? (
             <EmptyState
               searchQuery={searchQuery}

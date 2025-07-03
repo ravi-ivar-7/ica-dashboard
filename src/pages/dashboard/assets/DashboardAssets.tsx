@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { FolderOpen, Search, Filter, Grid, List, Download, Trash2, Edit, Tag, Plus, X, Check, ArrowUp, ArrowDown } from 'lucide-react';
-import { Asset, Filter as FilterType } from '../../types/dashboard';
-import { mockApi } from '../../services/api';
-import ErrorBoundary from '../../components/dashboard/ErrorBoundary';
-import LoadingSpinner from '../../components/dashboard/LoadingSpinner';
-import AssetCard from '../../components/dashboard/AssetCard';
-import { toast } from '../../contexts/ToastContext';
+import { FolderOpen, Search, Filter, Grid, List, Download, Trash2, Edit, Tag, X, Check, ArrowUp, ArrowDown } from 'lucide-react';
+import { Asset, Filter as FilterType } from '@/types/dashboard';
+import { mockApi } from '@/services/api';
+import ErrorBoundary from '@/components/dashboard/ErrorBoundary';
+import LoadingSpinner from '@/components/global/LoadingSpinner';
+import AssetCard from '@/components/dashboard/AssetCard';
+import { toast } from '@/contexts/ToastContext';
 
-export default function DashboardGallery() {
+export default function DashboardAssets() {
   // State for assets
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);

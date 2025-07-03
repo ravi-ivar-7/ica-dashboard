@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bug, MessageCircle, HelpCircle, Phone, X, Send, ChevronRight, Zap, ArrowRight, Search, FileText, Trash2, Download, Copy } from 'lucide-react';
-import { useBugReport } from '../contexts/BugReportContext';
+import { useBugReport } from '../../contexts/BugReportContext';
 import { Link } from 'react-router-dom';
-import { toast } from '../contexts/ToastContext';
+import { toast } from '../../contexts/ToastContext';
 
 export default function SupportWidget() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -367,11 +367,11 @@ export default function SupportWidget() {
         {isWidgetVisible && (
           <button
             onClick={() => setIsWidgetVisible(false)}
-            className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-full shadow-lg hover:scale-110 transition-all duration-300 backdrop-blur-xl border border-white/20"
+            className="bg-white/10 hover:bg-white/20 text-white p-1 rounded-full shadow-lg hover:scale-110 transition-all duration-300 backdrop-blur-xl border border-white/20"
             aria-label="Hide support widget"
             title="Hide support widget"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3 h-3" />
           </button>
         )}
         

@@ -1,22 +1,23 @@
 import React from 'react';
-import { 
-  TrendingUp, 
-  Users, 
-  Zap, 
-  Clock, 
-  Image, 
-  Video, 
-  Music, 
+import {
+  TrendingUp,
+  Zap,
+  Clock,
+  Image,
+  Video,
+  Music,
   Plus,
   ArrowRight,
   Target,
-  Palette
+  Palette, Film, Workflow
 } from 'lucide-react';
-import StatsCard from '../../components/dashboard/StatsCard';
-import AssetCard from '../../components/dashboard/AssetCard';
-import { useAuth } from '../../contexts/AuthContext';
-import { mockApi } from '../../services/api';
-import ErrorBoundary from '../../components/dashboard/ErrorBoundary';
+import StatsCard from '../../../components/dashboard/StatsCard';
+import AssetCard from '../../../components/dashboard/AssetCard';
+import { useAuth } from '../../../contexts/AuthContext';
+import { mockApi } from '../../../services/api';
+import ErrorBoundary from '../../../components/dashboard/ErrorBoundary';
+import { Link } from 'react-router-dom';
+
 
 const stats = [
   {
@@ -59,40 +60,62 @@ const quickActions = [
     description: 'Create stunning images with AI',
     icon: <Image className="w-5 h-5" />,
     gradient: 'from-purple-600 to-pink-600',
-    path: '/dashboard/images'
+    path: '/dashboard/images/generator'
   },
   {
     title: 'Create Video',
     description: 'Generate cinematic videos',
     icon: <Video className="w-5 h-5" />,
     gradient: 'from-red-600 to-orange-600',
-    path: '/dashboard/videos'
+    path: '/dashboard/videos/generator'
   },
   {
     title: 'Audio Generation',
-    description: 'Compose music and sounds',
+    description: 'Generate voiceovers, sound effects, and dialogues',
     icon: <Music className="w-5 h-5" />,
     gradient: 'from-cyan-600 to-blue-600',
-    path: '/dashboard/audio'
+    path: '/dashboard/audio/voice'
+  },
+  {
+    title: 'Music Generation',
+    description: 'Create AI-powered music tracks and melodies',
+    icon: <Music className="w-5 h-5" />,
+    gradient: 'from-cyan-600 to-blue-600',
+    path: '/dashboard/audio/music'
   },
   {
     title: 'Style Training',
     description: 'Train custom AI models',
     icon: <Palette className="w-5 h-5" />,
     gradient: 'from-emerald-600 to-teal-600',
-    path: '/dashboard/styles'
+    path: '/dashboard/train/styles'
+  },
+  {
+    title: 'Cineflow',
+    description: 'Create, edit and animate video compositions on canvas',
+    icon: <Film className="w-5 h-5" />,
+    gradient: 'from-emerald-600 to-teal-600',
+    path: '/dashboard/cineflow'
+  },
+  {
+    title: 'Workflow',
+    description: 'Automate creative tasks using modular AI tools and flows',
+    icon: <Workflow className="w-5 h-5" />,
+    gradient: 'from-purple-600 to-indigo-600',
+    path: '/dashboard/workflow'
   }
+
 ];
 
 export default function DashboardHome() {
   const { user } = useAuth();
-  
+
   // Get recent assets from mock API
   const recentAssets = mockApi.getAssets().slice(0, 4);
 
   return (
     <ErrorBoundary>
-      <div className="space-y-4">
+      <div className="space-y-4 p-4">
         {/* Welcome Section */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between bg-gradient-to-br from-gray-900/80 to-black/90 backdrop-blur-xl border border-white/20 rounded-xl p-4 shadow-md">
           <div>
@@ -103,7 +126,7 @@ export default function DashboardHome() {
               Here's what's happening with your AI creations today.
             </p>
           </div>
-          
+
           <div className="mt-3 lg:mt-0">
             <button className="bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 text-black font-bold px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 shadow-md flex items-center space-x-1 text-sm">
               <Plus className="w-4 h-4" />
@@ -126,27 +149,22 @@ export default function DashboardHome() {
               Quick Actions
             </h2>
           </div>
-          
+
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {quickActions.map((action, index) => (
-              <div
-                key={index}
-                className="group cursor-pointer bg-gradient-to-br from-gray-900/80 to-black/90 backdrop-blur-xl border border-white/20 rounded-xl p-3 text-center hover:border-white/30 transition-all duration-300 hover:scale-105 shadow-md hover:shadow-lg"
-              >
-                <div className={`bg-gradient-to-r ${action.gradient} p-2 rounded-lg inline-block mb-2 shadow-md group-hover:scale-110 transition-transform duration-300`}>
-                  {action.icon}
+              <Link to={action.path} key={index} className="block">
+                <div className="group cursor-pointer bg-gradient-to-br from-gray-900/80 to-black/90 backdrop-blur-xl border border-white/20 rounded-xl p-3 text-center hover:border-white/30 transition-all duration-300 hover:scale-105 shadow-md hover:shadow-lg">
+                  <div className={`bg-gradient-to-r ${action.gradient} p-2 rounded-lg inline-block mb-2 shadow-md group-hover:scale-110 transition-transform duration-300`}>
+                    {action.icon}
+                  </div>
+                  <h3 className="text-white font-bold text-sm mb-1">{action.title}</h3>
+                  <p className="text-white/70 text-xs mb-2">{action.description}</p>
+                  <div className="flex items-center justify-center space-x-1 text-purple-400 group-hover:text-purple-300 transition-colors">
+                    <span className="font-semibold text-xs">Get Started</span>
+                    <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                  </div>
                 </div>
-                <h3 className="text-white font-bold text-sm mb-1">
-                  {action.title}
-                </h3>
-                <p className="text-white/70 text-xs mb-2">
-                  {action.description}
-                </p>
-                <div className="flex items-center justify-center space-x-1 text-purple-400 group-hover:text-purple-300 transition-colors">
-                  <span className="font-semibold text-xs">Get Started</span>
-                  <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -164,7 +182,7 @@ export default function DashboardHome() {
                 <ArrowRight className="w-3 h-3" />
               </button>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {recentAssets.map((asset) => (
                 <AssetCard key={asset.id} {...asset} />
@@ -177,7 +195,7 @@ export default function DashboardHome() {
             <h2 className="text-lg font-bold text-white mb-3">
               Activity Feed
             </h2>
-            
+
             <div className="bg-gradient-to-br from-gray-900/80 to-black/90 backdrop-blur-xl border border-white/20 rounded-xl p-3 space-y-3">
               {[
                 {

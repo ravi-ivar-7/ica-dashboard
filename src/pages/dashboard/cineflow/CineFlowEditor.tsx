@@ -40,10 +40,6 @@ const loadFFmpeg = async () => {
   }
 };
 
-
-
-
-
 export default function CineFlowEditor() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
