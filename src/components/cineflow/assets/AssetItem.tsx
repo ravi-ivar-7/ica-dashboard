@@ -57,7 +57,7 @@ const AssetItem: React.FC<AssetItemProps> = ({ id, type, name, src, duration, on
 
   return (
     <div
-      className="group bg-white/5 rounded-lg p-2 hover:bg-white/10 transition-all duration-200 cursor-grab active:cursor-grabbing"
+      className="group bg-white/5 rounded-lg  p-1 m-1 hover:bg-white/10 transition-all duration-200 cursor-grab active:cursor-grabbing"
       draggable
       onDragStart={handleDragStart}
       onDoubleClick={handleDoubleClick}

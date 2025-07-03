@@ -154,13 +154,17 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
             )}
 
             {!isEditing && (
-              <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3">
-                <div className="bg-white/10 rounded-lg px-1.5 py-1">
+              <div
+                className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3"
+                onClick={() => setIsEditing(true)}
+              >
+                <div className="bg-white/10 rounded-lg px-1 py-1 cursor-pointer hover:bg-white/20 transition">
                   <span className="text-white text-xs sm:text-sm font-medium">
                     {aspectRatio}
                   </span>
                 </div>
               </div>
+
             )}
 
             <div className="text-white/50 text-xs hidden sm:block">Local Saving...</div>

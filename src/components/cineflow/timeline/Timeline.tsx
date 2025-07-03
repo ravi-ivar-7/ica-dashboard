@@ -1,9 +1,9 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { CanvasElementType } from '../../types/cineflow';
+import { CanvasElementType } from '@/types/cineflow';
 import { Layers, GripVertical } from 'lucide-react';
-import TimelineControls from './timeline/Controls';
-import TimeRuler from './timeline/TimeRuler';
-import Playhead from './timeline/PlayHead';
+import TimelineControls from './Controls';
+import TimeRuler from './TimeRuler';
+import Playhead from './PlayHead';
 
 interface TimelineProps {
   elements: CanvasElementType[];

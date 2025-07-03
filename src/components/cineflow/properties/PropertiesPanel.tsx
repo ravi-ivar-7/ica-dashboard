@@ -1,11 +1,11 @@
 import React from 'react';
-import { CanvasElementType } from '../../types/cineflow';
+import { CanvasElementType } from '../../../types/cineflow';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { BasePropertiesPanel } from './properties/BasePropertiesPanel';
-import { TextProperties } from './properties/TextProperties';
-import { ImageProperties } from './properties/ImageProperties';
-import { VideoProperties } from './properties/VideoProperties';
-import { AudioProperties } from './properties/AudioProperties';
+import { BasePropertiesPanel } from './BasePropertiesPanel';
+import { TextProperties } from './TextProperties';
+import { ImageProperties } from './ImageProperties';
+import { VideoProperties } from './VideoProperties';
+import { AudioProperties } from './AudioProperties';
 
 interface PropertiesPanelProps {
   selectedElement: CanvasElementType | null;

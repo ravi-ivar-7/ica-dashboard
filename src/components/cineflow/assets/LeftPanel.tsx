@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../Tabs';
 import AssetItem from './AssetItem';
 import { Image, Video, Music, FileText, Sticker, Upload, Search, Folder, Plus, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Asset, Template, Element, TextStyle } from '@/types/cineflow';
@@ -287,10 +287,10 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
             {/* Images Section */}
             <div>
               <div
-                className="flex items-center justify-between text-white/60 text-xs font-medium mb-1 cursor-pointer hover:text-white/80"
+                className="flex items-center justify-between text-white/60 text-xs font-medium mb-1 cursor-pointer hover:text-white/80 pt-2"
                 onClick={() => toggleSectionCollapse('images')}
               >
-                <div className="flex items-center">
+                <div className="flex items-center ">
                   <Image className="w-3 h-3 mr-1" />
                   <span>Images</span>
                 </div>
@@ -301,7 +301,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
               </div>
 
               {!collapsedSections.images && filteredAssets.filter(asset => asset.type === 'image').map(asset => (
-                <AssetItem
+                <AssetItem 
                   key={asset.id}
                   id={asset.id}
                   type={asset.type}
@@ -315,10 +315,10 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
             {/* Videos Section */}
             <div className="mt-3">
               <div
-                className="flex items-center justify-between text-white/60 text-xs font-medium mb-1 cursor-pointer hover:text-white/80"
+                className="flex items-center justify-between text-white/60 text-xs font-medium mb-1 cursor-pointer hover:text-white/80 pt-2"
                 onClick={() => toggleSectionCollapse('videos')}
               >
-                <div className="flex items-center">
+                <div className="flex items-center ">
                   <Video className="w-3 h-3 mr-1" />
                   <span>Videos</span>
                 </div>
@@ -345,7 +345,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
             {/* Audio Section */}
             <div className="mt-3">
               <div
-                className="flex items-center justify-between text-white/60 text-xs font-medium mb-1 cursor-pointer hover:text-white/80"
+                className="flex items-center justify-between text-white/60 text-xs font-medium mb-1 cursor-pointer hover:text-white/80 pt-2"
                 onClick={() => toggleSectionCollapse('audio')}
               >
                 <div className="flex items-center">

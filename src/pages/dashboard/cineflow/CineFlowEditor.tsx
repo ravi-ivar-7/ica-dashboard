@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ChevronDown, GripHorizontal } from 'lucide-react';
-import ErrorBoundary from '../../../components/dashboard/ErrorBoundary';
+import ErrorBoundary from '@/components/dashboard/ErrorBoundary';
 import { toast } from '../../../contexts/ToastContext';
 import { CanvasElementType, CineFlowProject, Template, AspectRatio } from '../../../types/cineflow';
 
@@ -10,12 +10,12 @@ import { createFFmpeg } from '@ffmpeg/ffmpeg';
 import { getProjectById } from '@/services/api/projects';
 
 // Import components
-import LeftPanel from '../../../components/cineflow/LeftPanel';
-import Canvas from '../../../components/cineflow/Canvas';
-import Timeline from '../../../components/cineflow/Timeline';
-import PropertiesPanel from '../../../components/cineflow/PropertiesPanel';
-import TopToolbar from '../../../components/cineflow/TopToolbar';
-import ExportModal from '../../../components/cineflow/ExportIndex';
+import LeftPanel from '@/components/cineflow/assets/LeftPanel';
+import Canvas from '@/components/cineflow/canvas/Canvas';
+import Timeline from '@/components/cineflow/timeline/Timeline';
+import PropertiesPanel from '@/components/cineflow/properties/PropertiesPanel';
+import TopToolbar from '@/components/cineflow/TopToolbar';
+import ExportModal from '@/components/cineflow/export/ExportIndex';
 
 // Initialize FFmpeg
 let ffmpeg: any = null;

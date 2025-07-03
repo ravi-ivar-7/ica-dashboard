@@ -9,7 +9,7 @@ export const loadFFmpeg = async () => {
 
   try {
     ffmpegInstance = createFFmpeg({
-      log: true,
+      // log: true,
       corePath: '/ffmpeg/ffmpeg-core.js',
     });
     await ffmpegInstance.load();
