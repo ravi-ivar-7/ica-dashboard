@@ -11,7 +11,7 @@ export const downloadFile = (blob: Blob, filename: string) => {
 };
 
 export const getExportFilename = (projectName: string, format: string, extension: string) => {
-  return `${projectName.replace(/\s+/g, '_')}_${format}.${extension}`;
+  return `${projectName.replace(/\s+/g, '_')}.${extension}`;
 };
 
 export const createImageZip = async (images: string[], filename: string): Promise<Blob> => {

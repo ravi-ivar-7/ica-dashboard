@@ -1,3 +1,4 @@
+// CineFlowHome.tsx
 import { useState, useEffect } from 'react';
 import { Film, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -11,15 +12,13 @@ import SearchFilterBar from './sections/SearchFilterBar';
 import EmptyState from './sections/EmptyState';
 import ProjectCard from './sections/ProjectCard';
 import NewProjectModal from './sections/NewProjectModal';
-
+import { AspectRatio } from '@/types/cineflow';
 
 export default function CineFlowHome() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
-
-
   const [projects, setProjects] = useState<CineFlowProject[]>([]);
 
   useEffect(() => {
@@ -29,6 +28,7 @@ export default function CineFlowHome() {
         setProjects(result);
       } catch (e) {
         console.error(e);
+        toast.error('Failed to load projects');
       }
     };
     load();
@@ -37,45 +37,101 @@ export default function CineFlowHome() {
   // Filter projects based on search
   const filteredProjects = projects.filter(project =>
     project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    project.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+    (project.tags && project.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+  ));
 
   // Handle creating a new project
-  const handleCreateProject = (formData: any) => {
+  const handleCreateProject = (formData: {
+    name: string;
+    description: string;
+    aspectRatio: AspectRatio;
+    tags: string[];
+  }) => {
     if (!formData.name.trim()) {
       toast.error('Please enter a project name');
       return;
     }
-
 
     const newProject: CineFlowProject = {
       id: `cf${Date.now()}`,
       name: formData.name,
       thumbnail: 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop',
       description: formData.description,
-      aspectRatio: formData.aspectRatio as '16:9' | '9:16' | '1:1' | '4:3' | '21:9',
-      duration: 0, // in seconds
+      aspectRatio: formData.aspectRatio,
+      duration: 5,
       status: 'draft',
       elements: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      tags: formData.tags
+      tags: formData.tags || []
     };
-
 
     setProjects([newProject, ...projects]);
     setShowNewProjectModal(false);
 
     // Navigate to editor
     navigate(`/dashboard/cineflow/editor/${newProject.id}`, {
-      state: { project: newProject }
+      state: { 
+        project: newProject,
+        imported: false,
+        metadata: { source: 'new' } 
+      }
     });
-
 
     toast.success('New CineFlow project created', {
       subtext: 'Opening editor...',
       duration: 3000
     });
+  };
+
+  const handleImportProject = (importedProject: { metadata: any; project: CineFlowProject }) => {
+    try {
+      // Validate required fields
+      const project = importedProject.project;
+
+      if (!project?.name?.trim()) {
+        throw new Error('Imported project is missing a name');
+      }
+
+      const sanitizedProject: CineFlowProject = {
+        id: `cf${Date.now()}`,
+        name: project.name.trim(),
+        description: project.description || '',
+        aspectRatio: project.aspectRatio || '16:9',
+        duration: typeof project.duration === 'number' ? project.duration : 5,
+        status: 'draft',
+        elements: project.elements || [],
+        tags: project.tags || [],
+        thumbnail: project.thumbnail || 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop',
+        createdAt: project.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      // Update state
+      setProjects(prev => [sanitizedProject, ...prev]);
+      setShowNewProjectModal(false);
+
+      // Navigate to editor
+      navigate(`/dashboard/cineflow/editor/${sanitizedProject.id}`, {
+        state: { 
+          project: sanitizedProject, 
+          imported: true, 
+          metadata: importedProject.metadata 
+        }
+      });
+
+      toast.success('Project imported successfully', {
+        subtext: 'Opening editor...',
+        duration: 3000
+      });
+
+    } catch (error) {
+      console.error('Import failed:', error);
+      toast.error('Failed to import project', {
+        subtext: error instanceof Error ? error.message : 'Invalid project file',
+        duration: 5000
+      });
+    }
   };
 
   // Handle deleting a project
@@ -90,8 +146,6 @@ export default function CineFlowHome() {
       state: { project }
     });
   };
-
-
 
   return (
     <ErrorBoundary>
@@ -150,7 +204,6 @@ export default function CineFlowHome() {
                   handleOpenProject={() => handleOpenProject(project)}
                   handleDeleteProject={handleDeleteProject}
                 />
-
               ))}
             </div>
           )}
@@ -162,6 +215,7 @@ export default function CineFlowHome() {
         isOpen={showNewProjectModal}
         onClose={() => setShowNewProjectModal(false)}
         onCreateProject={handleCreateProject}
+        onImportProject={handleImportProject}
       />
     </ErrorBoundary>
   );

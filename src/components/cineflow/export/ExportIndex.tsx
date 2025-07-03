@@ -50,6 +50,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
   }, [isOpen]);
 
   const handleExport = async () => {
+
     setIsExporting(true);
     setExportProgress({ percentage: 0, message: 'Starting export...' });
 
@@ -66,6 +67,13 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
         result = exportJson(project);
         setExportProgress({ percentage: 100, message: 'JSON export ready' });
       }
+      else {
+        throw new Error('Unsupported export format');
+      }
+
+      if(config.format === 'json' && config.destination === 'post') {
+        throw new Error('JSON export cannot be posted directly. Please try other formats.');
+      }
 
       if (result) {
         if (config.destination === 'download') {
@@ -79,8 +87,9 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
             }
           } else {
             // Handle both video and JSON downloads
-            const extension = config.format === 'video' ? 'mp4' : 'json';
-            downloadFile(result as Blob, getExportFilename(project.name, config.format, extension));
+            const extension = config.format === 'video' ? 'mp4' : 'cineflow.json';
+            const filename = getExportFilename(project.name, config.format, extension);
+            downloadFile(result as Blob, filename);
           }
         } else {
           // Handle cloud/asset storage
@@ -159,6 +168,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
               <DestinationSelector
                 destination={config.destination}
                 onChange={(destination) => setConfig({ ...config, destination })}
+                format={config.format}
               />
               <SettingsSelector
                 config={config}

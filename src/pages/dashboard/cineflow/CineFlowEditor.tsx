@@ -85,8 +85,9 @@ export default function CineFlowEditor() {
       try {
         const stateProject = location.state?.project || {};
         const projectId = id || stateProject?.id;
+        const metadata = location.state?.metadata || {};
+
         console.log('Loading project with ID:', projectId);
-        console.log('State project:', stateProject);
         // 1. Validate essentials
         if (!projectId || !stateProject?.name) {
           toast.error('Missing project ID or name');
@@ -94,45 +95,52 @@ export default function CineFlowEditor() {
         }
 
         let loadedProject: CineFlowProject | null = null;
+        const imported = location.state?.imported
 
-        // 2. Try localStorage
-        const saved = localStorage.getItem(`cineflow-project-${projectId}`);
-        if (saved && saved !== 'undefined') {
-          const parsed = JSON.parse(saved);
-          parsed.elements = parsed.elements.map((el: CanvasElementType, i: number) => ({
-            ...el,
-            layer: el.layer !== undefined ? el.layer : i,
-          }));
+        if (imported) {
+            loadedProject ={...stateProject}
+        }
+        else {
+          // 2. Try localStorage
+          const saved = localStorage.getItem(`cineflow-project-${projectId}`);
+          if (saved && saved !== 'undefined') {
+            const parsed = JSON.parse(saved);
+            parsed.elements = parsed.elements.map((el: CanvasElementType, i: number) => ({
+              ...el,
+              layer: el.layer !== undefined ? el.layer : i,
+            }));
 
-          loadedProject = {
-            ...parsed,
-            ...stateProject,
-            elements: parsed.elements,
-          };
-        } else {
-          try {
-            // 3. Try backend
-            const backend = await getProjectById(projectId);
             loadedProject = {
-              ...backend,
+              ...parsed,
               ...stateProject,
+              elements: parsed.elements,
             };
-          } catch (err) {
-            // 4. Fallback: Create new project
-            loadedProject = {
-              id: projectId,
-              name: stateProject.name || 'Untitled Project',
-              description: stateProject.description || '',
-              aspectRatio: stateProject.aspectRatio || '16:9',
-              tags: stateProject.tags || [],
-              status: 'draft',
-              duration: 1,
-              elements: [],
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            };
+          } else {
+            try {
+              // 3. Try backend
+              const backend = await getProjectById(projectId);
+              loadedProject = {
+                ...backend,
+                ...stateProject,
+              };
+            } catch (err) {
+              // 4. Fallback: Create new project
+              loadedProject = {
+                id: projectId,
+                name: stateProject.name || 'Untitled Project',
+                description: stateProject.description || '',
+                aspectRatio: stateProject.aspectRatio || '16:9',
+                tags: stateProject.tags || [],
+                status: 'draft',
+                duration: 1,
+                elements: [],
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              };
+            }
           }
         }
+
 
         if (!loadedProject) {
           toast.error('Failed to load project');
