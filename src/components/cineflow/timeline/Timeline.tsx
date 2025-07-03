@@ -440,7 +440,7 @@ const Timeline: React.FC<TimelineProps> = ({
 
             {/* TIMELINE TRACKS */}
             <div
-              className="flex-1 relative"
+              className="flex-1 relative pt-1"
               ref={timelineRef}
               data-timeline-ref="true"
               onClick={handleTimelineClick}
@@ -456,7 +456,7 @@ const Timeline: React.FC<TimelineProps> = ({
               />
 
               {/* Element timelines */}
-              <div className="space-y-1   ">
+              <div className=" space-y-1.5 ">
                 {sortedElements.map((element) => {
                   const isVisible = currentTime >= element.startTime &&
                     currentTime < (element.startTime + element.duration);
@@ -467,7 +467,7 @@ const Timeline: React.FC<TimelineProps> = ({
                   return (
                     <div
                       key={element.id}
-                      className="relative h-7 w-full"
+                      className="relative h-6 w-full"
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectElement(element.id);

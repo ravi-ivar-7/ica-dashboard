@@ -16,7 +16,7 @@ interface NewProjectModalProps {
   onImportProject: (importedProject: { metadata: any; project: CineFlowProject }) => void;
 }
 
-const allowedRatios: AspectRatio[] = ['16:9', '9:16', '1:1', '4:3', '21:9'];
+const allowedRatios: AspectRatio[] = ['1:1', '16:9', '9:16', '4:3', '21:9'];
 
 export default function NewProjectModal({
   isOpen,
@@ -27,7 +27,7 @@ export default function NewProjectModal({
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    aspectRatio: '16:9' as AspectRatio,
+    aspectRatio: '1:1' as AspectRatio,
     tags: [] as string[]
   });
 

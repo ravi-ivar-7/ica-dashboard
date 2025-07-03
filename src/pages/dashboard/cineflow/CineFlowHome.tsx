@@ -97,7 +97,7 @@ export default function CineFlowHome() {
         id: `cf${Date.now()}`,
         name: project.name.trim(),
         description: project.description || '',
-        aspectRatio: project.aspectRatio || '16:9',
+        aspectRatio: project.aspectRatio || '1:1',
         duration: typeof project.duration === 'number' ? project.duration : 5,
         status: 'draft',
         elements: project.elements || [],
