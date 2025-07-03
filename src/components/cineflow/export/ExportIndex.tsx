@@ -1,7 +1,7 @@
 // export/ExportIndex.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Download } from 'lucide-react';
-import { toast } from '@/contexts/ToastContext'; 
+import { toast } from '@/contexts/ToastContext';
 import { exportVideo } from './services/videoExportService';
 import { exportImageSequence } from './services/imageExportService';
 import { exportJson } from './services/jsonExportService';
@@ -12,9 +12,9 @@ import { SettingsSelector } from './components/SettingsSelector';
 import { ExportInfo } from './components/ExportInfo';
 import { ExportProgress as ExportProgressComponent } from './components/ExportProgress';
 
-import { downloadFile, createImageZip, getExportFilename } from './utils/fileUtils';
+import { downloadFile, getExportFilename } from './utils/fileUtils';
 
-
+import { ImageSequenceResult } from './services/imageExportService';
 
 const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) => {
   const [config, setConfig] = useState<ExportConfig>({
@@ -49,68 +49,83 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, project }) =
     };
   }, [isOpen]);
 
-const handleExport = async () => {
-  setIsExporting(true);
-  setExportProgress({ percentage: 0, message: 'Starting export...' });
+  const handleExport = async () => {
+    setIsExporting(true);
+    setExportProgress({ percentage: 0, message: 'Starting export...' });
 
-  try {
-    let blob: Blob | string[] | null = null;
+    try {
+      let result: Blob | string[] | ImageSequenceResult | null = null;
 
-    if (config.format === 'video') {
-      blob = await exportVideo(project, config, setExportProgress);
-    } else if (config.format === 'image-sequence') {
-      blob = await exportImageSequence(project, config, setExportProgress);
-    } else if (config.format === 'json') {
-      blob = exportJson(project);
-    }
-
-    if (blob) {
-      if (config.destination === 'download') {
-        if (config.format === 'image-sequence' && Array.isArray(blob)) {
-          const zipBlob = await createImageZip(blob, getExportFilename(project.name, 'sequence', 'zip'));
-          downloadFile(zipBlob, getExportFilename(project.name, 'sequence', 'zip'));
-        } else if (blob instanceof Blob) {
-          const extension = config.format === 'video' ? 'mp4' : 'json';
-          downloadFile(blob, getExportFilename(project.name, config.format, extension));
-        }
-      } else {
-        // For assets or cloud, just simulate the process
-        // RECONSIDER 
-        await new Promise(resolve => setTimeout(
-          resolve, 
-          config.destination === 'assets' ? 500 : 1000
-        ));
+      if (config.format === 'video') {
+        result = await exportVideo(project, config, setExportProgress);
+      } else if (config.format === 'image-sequence') {
+        result = await exportImageSequence(project, config, setExportProgress);
+      } else if (config.format === 'json') {
+        // JSON export is synchronous but we wrap in Promise for consistency
+        setExportProgress({ percentage: 50, message: 'Preparing JSON data...' });
+        result = exportJson(project);
+        setExportProgress({ percentage: 100, message: 'JSON export ready' });
       }
 
-      toast.success('Export completed successfully', {
-        subtext: config.destination === 'download' 
-          ? 'Your file has been downloaded' 
-          : config.destination === 'assets'
-            ? 'Your file has been added to your assets'
-            : 'Your file has been uploaded to cloud storage',
+      if (result) {
+        if (config.destination === 'download') {
+          if (config.format === 'image-sequence') {
+            // Handle image sequence download
+            if (isImageSequenceResult(result)) {
+              // Directly use the zipBlob from the result
+              downloadFile(result.zipBlob, getExportFilename(project.name, 'sequence', 'zip'));
+            } else {
+              throw new Error('Invalid image sequence export result');
+            }
+          } else {
+            // Handle both video and JSON downloads
+            const extension = config.format === 'video' ? 'mp4' : 'json';
+            downloadFile(result as Blob, getExportFilename(project.name, config.format, extension));
+          }
+        } else {
+          // Handle cloud/asset storage
+          await new Promise(resolve => setTimeout(
+            resolve,
+            config.destination === 'assets' ? 500 : 1000
+          ));
+        }
+
+        toast.success('Export completed successfully', {
+          subtext: config.destination === 'download'
+            ? 'Your file has been downloaded'
+            : config.destination === 'assets'
+              ? 'Your file has been added to your assets'
+              : 'Your file has been uploaded to cloud storage',
+          duration: 5000
+        });
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Export failed', {
+        subtext: error instanceof Error ? error.message : 'There was an error during the export process',
         duration: 5000
       });
+    } finally {
+      setIsExporting(false);
+      onClose();
     }
-  } catch (error) {
-    console.error('Export error:', error);
-    toast.error('Export failed', {
-      subtext: 'There was an error during the export process. Please try again.',
-      duration: 5000
-    });
-  } finally {
-    setIsExporting(false);
-    onClose();
+  };
+
+  // Add this type guard near your other utility functions
+  function isImageSequenceResult(result: any): result is ImageSequenceResult {
+    return result && result.zipBlob instanceof Blob && typeof result.frameCount === 'number';
   }
-};
+
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div 
+      <div
         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
         onClick={isExporting ? undefined : onClose}
       />
-      
+
       <div className="relative bg-gray-900/95 backdrop-blur-2xl border border-white/20 rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
         <div className="p-4 border-b border-white/10 flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -131,22 +146,22 @@ const handleExport = async () => {
 
         <div className="p-4 space-y-4">
           {isExporting ? (
-            <ExportProgressComponent 
-              progress={exportProgress} 
-              format={config.format} 
+            <ExportProgressComponent
+              progress={exportProgress}
+              format={config.format}
             />
           ) : (
             <>
-              <FormatSelector 
-                format={config.format} 
-                onChange={(format) => setConfig({ ...config, format })} 
+              <FormatSelector
+                format={config.format}
+                onChange={(format) => setConfig({ ...config, format })}
               />
-              <DestinationSelector 
-                destination={config.destination} 
-                onChange={(destination) => setConfig({ ...config, destination })} 
+              <DestinationSelector
+                destination={config.destination}
+                onChange={(destination) => setConfig({ ...config, destination })}
               />
-              <SettingsSelector 
-                config={config} 
+              <SettingsSelector
+                config={config}
                 onChange={(partial) => setConfig({ ...config, ...partial })}
                 showSettings={config.format !== 'json'}
               />
