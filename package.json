@@ -1,5 +1,5 @@
 {
-  "name": "ai-creators-academy",
+  "name": "icinema-ai",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -21,6 +21,7 @@
     "react-dropzone": "^14.2.3",
     "react-hot-toast": "^2.4.1",
     "react-router-dom": "^6.20.1",
+    "reactflow": "^11.11.4",
     "wavesurfer.js": "^7.7.3"
   },
   "devDependencies": {
